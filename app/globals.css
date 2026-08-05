@@ -1,0 +1,225 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-fira-sans);
+  --font-mono: var(--font-fira-code);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Domain tokens (Help-Desk) — registered as Tailwind utilities */
+  --color-on-primary: var(--on-primary);
+  --color-surface: var(--surface);
+  --color-muted-fg: var(--muted-fg);
+
+  --color-status-aguardando: var(--status-aguardando);
+  --color-status-a-fazer: var(--status-a-fazer);
+  --color-status-andamento: var(--status-andamento);
+  --color-status-pausado: var(--status-pausado);
+  --color-status-finalizado: var(--status-finalizado);
+  --color-status-cancelado: var(--status-cancelado);
+
+  --color-sla-ok: var(--sla-ok);
+  --color-sla-atencao: var(--sla-atencao);
+  --color-sla-critico: var(--sla-critico);
+  --color-sla-estourado: var(--sla-estourado);
+  --color-sla-pausado: var(--sla-pausado);
+
+  /* Text scale — dashboard denso */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+}
+
+:root {
+  /* Cor do domínio Help-Desk */
+  --primary: #1e40af;
+  --primary-foreground: #ffffff;
+  --on-primary: #ffffff;
+  --secondary: #3b82f6;
+  --secondary-foreground: #ffffff;
+  --accent: #d97706;
+  --accent-foreground: #ffffff;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --foreground: #0f172a;
+  --muted-foreground: #64748b;
+  --muted-fg: #64748b;
+  --border: #e2e8f0;
+  --destructive: #dc2626;
+  --ring: #1e40af;
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --muted: #f1f5f9;
+  --input: var(--border);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Status do chamado */
+  --status-aguardando: #d97706;
+  --status-a-fazer: #64748b;
+  --status-andamento: #2563eb;
+  --status-pausado: #7c3aed;
+  --status-finalizado: #059669;
+  --status-cancelado: #94a3b8;
+
+  /* SLA */
+  --sla-ok: #059669;
+  --sla-atencao: #d97706;
+  --sla-critico: #dc2626;
+  --sla-estourado: #991b1b;
+  --sla-pausado: #64748b;
+
+  /* Densidade (dashboard denso) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --sidebar-w: 240px;
+  --topbar-h: 56px;
+  --row-h: 36px;
+  --card-pad: 12px;
+  --grid-gap: 8px;
+  --radius: 6px;
+}
+
+.dark {
+  /* Cor do domínio Help-Desk — pares escuros (contraste >= 4.5:1) */
+  --primary: #3b82f6;
+  --primary-foreground: #f8fafc;
+  --on-primary: #f8fafc;
+  --secondary: #2563eb;
+  --secondary-foreground: #f8fafc;
+  --accent: #f59e0b;
+  --accent-foreground: #1e293b;
+  --background: #0f172a;
+  --surface: #1e293b;
+  --foreground: #f8fafc;
+  --muted-foreground: #94a3b8;
+  --muted-fg: #94a3b8;
+  --border: #334155;
+  --destructive: #f87171;
+  --ring: #3b82f6;
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --muted: #1e293b;
+  --input: var(--border);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: #263449;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Status do chamado — par escuro */
+  --status-aguardando: #fbbf24;
+  --status-a-fazer: #cbd5e1;
+  --status-andamento: #60a5fa;
+  --status-pausado: #a78bfa;
+  --status-finalizado: #34d399;
+  --status-cancelado: #94a3b8;
+
+  /* SLA — par escuro */
+  --sla-ok: #34d399;
+  --sla-atencao: #fbbf24;
+  --sla-critico: #f87171;
+  --sla-estourado: #fca5a5;
+  --sla-pausado: #94a3b8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Fira Code + tabular-nums: usar em número de chamado, contagem de SLA e horas */
+  .font-tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
