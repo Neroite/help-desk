@@ -9,18 +9,21 @@ import { cn } from "@/lib/utils"
 interface TicketCardProps {
   ticket: Ticket
   arrastavel?: boolean
+  href?: string
   className?: string
 }
 
 // Serve duas telas: coluna do kanban e lista em mobile (a tabela vira
 // cards abaixo de 768px — ver seção de responsividade do design).
-export function TicketCard({ ticket, arrastavel = false, className }: TicketCardProps) {
+// `href` tem default para a rota do analista; o portal do cliente passa
+// `/portal/chamados/{numero}` para não vazar o solicitante para a tela interna.
+export function TicketCard({ ticket, arrastavel = false, href, className }: TicketCardProps) {
   const empresa = empresaPorId(ticket.empresaId)
   const analista = usuarioPorId(ticket.analistaId)
 
   return (
     <Link
-      href={`/chamados/${ticket.numero}`}
+      href={href ?? `/chamados/${ticket.numero}`}
       className={cn(
         "flex flex-col gap-2 rounded-md border border-border bg-surface p-(--card-pad) text-sm shadow-sm transition-colors hover:border-primary/40",
         arrastavel && "cursor-grab active:cursor-grabbing",

@@ -18,6 +18,23 @@ interface SlaBadgeProps {
 // próprio timer de 1s vira jank garantido.
 export function SlaBadge({ rotulo, venceEm, statusKey, className }: SlaBadgeProps) {
   const agora = useSlaClock()
+
+  // `agora` só existe depois de montar no cliente (ver lib/sla-clock.tsx —
+  // evita divergir do HTML renderizado no servidor). Até lá, um placeholder
+  // neutro do mesmo tamanho, sem calcular severidade/tempo.
+  if (!agora) {
+    return (
+      <span
+        className={cn(
+          "inline-flex h-6 items-center gap-1.5 rounded-md border border-border px-2 text-xs font-medium text-muted-foreground font-tabular",
+          className
+        )}
+      >
+        {rotulo} …
+      </span>
+    )
+  }
+
   const severidade = calcularSeveridade(venceEm, statusKey, agora)
   const meta = SLA_SEVERIDADE_META[severidade]
   const Icon = meta.icon

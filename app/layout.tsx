@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
 import { SlaClockProvider } from "@/lib/sla-clock";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const firaSans = Fira_Sans({
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${firaSans.variable} ${firaCode.variable} antialiased`}
       >
         <SlaClockProvider>{children}</SlaClockProvider>
+        <Toaster />
       </body>
     </html>
   );

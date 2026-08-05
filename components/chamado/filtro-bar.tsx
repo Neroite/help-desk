@@ -60,7 +60,13 @@ export function FiltroBar() {
           onValueChange={(value) => setParam(filtro.param, value ?? "todos")}
         >
           <SelectTrigger className="h-8 w-40 text-xs">
-            <SelectValue placeholder={filtro.label} />
+            <SelectValue placeholder={filtro.label}>
+              {(value: string) =>
+                value === "todos"
+                  ? `${filtro.label}: todos`
+                  : (filtro.opcoes.find((o) => o.value === value)?.label ?? value)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
