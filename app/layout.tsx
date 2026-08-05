@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
+import { SlaClockProvider } from "@/lib/sla-clock";
 import "./globals.css";
 
 const firaSans = Fira_Sans({
@@ -15,7 +16,7 @@ const firaCode = Fira_Code({
 
 export const metadata: Metadata = {
   title: "Help-Desk",
-  description: "Sistema de help desk / gestao de tickets.",
+  description: "Sistema de help desk / gestão de tickets.",
 };
 
 export default function RootLayout({
@@ -28,7 +29,7 @@ export default function RootLayout({
       <body
         className={`${firaSans.variable} ${firaCode.variable} antialiased`}
       >
-        {children}
+        <SlaClockProvider>{children}</SlaClockProvider>
       </body>
     </html>
   );
