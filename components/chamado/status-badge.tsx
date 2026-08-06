@@ -22,7 +22,9 @@ export function StatusBadge({ statusKey, rotulo, className }: StatusBadgeProps) 
         className
       )}
       style={{
-        color: `var(--${meta.colorVar})`,
+        // Texto usa a variante -fg (garante 4.5:1 em texto pequeno); borda
+        // e fundo seguem no vibrante — só precisam de contraste 3:1/nenhum.
+        color: `var(--${meta.colorVarFg})`,
         borderColor: `color-mix(in srgb, var(--${meta.colorVar}) 40%, transparent)`,
         backgroundColor: `color-mix(in srgb, var(--${meta.colorVar}) 12%, transparent)`,
       }}

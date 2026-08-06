@@ -1,96 +1,153 @@
-import { AlertOctagon, Ticket as TicketIcon } from "lucide-react"
+"use client"
 
+import {
+  AlertOctagon,
+  AlertTriangle,
+  Pause,
+  Tag,
+  Ticket as TicketIcon,
+  User,
+} from "lucide-react"
+
+import { KpiTile } from "@/components/dashboard/kpi-tile"
 import { tickets } from "@/lib/mock/data"
+import { calcularSeveridade } from "@/lib/sla-display"
+import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_META } from "@/lib/status"
-import { STATUS_FINAIS, STATUS_KEYS } from "@/lib/types"
+import { STATUS_FINAIS, STATUS_KEYS, type StatusKey } from "@/lib/types"
+
+// Mesmo sentinel usado em app/(app)/chamados/page.tsx e
+// app/(app)/chamados/meus/page.tsx — sem auth ainda, "eu" = este usuário mock.
+const ANALISTA_LOGADO_ID = "u-joao"
 
 export default function DashboardPage() {
-  const agora = new Date()
+  // "use client" + useSlaClock() em vez de `new Date()` direto: qualquer
+  // cálculo que dependa de "agora" (severidade de SLA) precisa desse guard,
+  // senão o servidor calcula com um instante diferente do cliente e gera
+  // mismatch de hidratação — ver lib/sla-clock.tsx.
+  const agora = useSlaClock()
 
   const contagemPorStatus = STATUS_KEYS.map((statusKey) => ({
     statusKey,
     total: tickets.filter((t) => t.statusKey === statusKey).length,
   }))
+  const totalPorStatus = (statusKey: StatusKey) =>
+    contagemPorStatus.find((c) => c.statusKey === statusKey)?.total ?? 0
 
   const totalAbertos = tickets.filter((t) => !STATUS_FINAIS.includes(t.statusKey)).length
 
-  const slaEstourado = tickets.filter(
-    (t) =>
-      !STATUS_FINAIS.includes(t.statusKey) &&
-      t.slaSolucaoVenceEm !== null &&
-      new Date(t.slaSolucaoVenceEm).getTime() < agora.getTime()
+  const meus = tickets.filter(
+    (t) => t.analistaId === ANALISTA_LOGADO_ID && !STATUS_FINAIS.includes(t.statusKey)
   ).length
+
+  const semCategoria = tickets.filter((t) => t.catProblemaId === null).length
+
+  const pausados = totalPorStatus("pausado")
+
+  // Severidade depende de "agora": enquanto o relógio não montou no cliente
+  // (agora === null), tratamos como 0 em vez de calcular — servidor e
+  // primeira renderização do cliente ficam idênticos, sem mismatch. O
+  // useEffect do SlaClockProvider atualiza isso logo em seguida.
+  const naoFinalizados = agora ? tickets.filter((t) => !STATUS_FINAIS.includes(t.statusKey)) : []
+  const slaEstourado = agora
+    ? naoFinalizados.filter(
+        (t) => calcularSeveridade(t.slaSolucaoVenceEm, t.statusKey, agora) === "estourado"
+      ).length
+    : 0
+  const slaPrestesAEstourar = agora
+    ? naoFinalizados.filter((t) => {
+        const severidade = calcularSeveridade(t.slaSolucaoVenceEm, t.statusKey, agora)
+        return severidade === "critico" || severidade === "atencao"
+      }).length
+    : 0
 
   const totalGeral = tickets.length
 
   return (
-    <div className="flex flex-col gap-(--space-4)">
+    <div className="flex flex-col gap-(--space-6)">
       <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
 
-      <div className="grid grid-cols-1 gap-(--space-3) sm:grid-cols-2">
-        <div className="flex items-center gap-(--space-4) rounded-lg border border-border bg-surface p-(--space-4)">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <TicketIcon className="size-5" aria-hidden="true" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Chamados abertos</span>
-            <span className="text-3xl font-semibold font-tabular text-foreground">
-              {totalAbertos}
-            </span>
-          </div>
+      <section className="flex flex-col gap-(--space-2)">
+        <h2 className="text-sm font-semibold text-foreground">Tickets</h2>
+        <div className="grid grid-cols-2 gap-(--space-3) sm:grid-cols-3 lg:grid-cols-6">
+          <KpiTile
+            rotulo="Ag. aprovação"
+            valor={totalPorStatus("aguardando_aprovacao")}
+            icon={STATUS_META.aguardando_aprovacao.icon}
+            colorVar={STATUS_META.aguardando_aprovacao.colorVar}
+            href="/chamados?status=aguardando_aprovacao"
+          />
+          <KpiTile
+            rotulo="A fazer"
+            valor={totalPorStatus("a_fazer")}
+            icon={STATUS_META.a_fazer.icon}
+            colorVar={STATUS_META.a_fazer.colorVar}
+            href="/chamados?status=a_fazer"
+          />
+          <KpiTile
+            rotulo="Em atendimento"
+            valor={totalPorStatus("em_andamento")}
+            icon={STATUS_META.em_andamento.icon}
+            colorVar={STATUS_META.em_andamento.colorVar}
+            href="/chamados?status=em_andamento"
+          />
+          <KpiTile
+            rotulo="Pausados"
+            valor={pausados}
+            icon={STATUS_META.pausado.icon}
+            colorVar={STATUS_META.pausado.colorVar}
+            href="/chamados?status=pausado"
+          />
+          <KpiTile
+            rotulo="Abertos"
+            valor={totalAbertos}
+            icon={TicketIcon}
+            colorVar="primary"
+            href="/chamados?aberto=1"
+          />
+          <KpiTile
+            rotulo="Meus"
+            valor={meus}
+            icon={User}
+            colorVar="kpi-meus"
+            href="/chamados?analista=eu"
+          />
         </div>
+      </section>
 
-        <div className="flex items-center gap-(--space-4) rounded-lg border border-border bg-surface p-(--space-4)">
-          <div
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg"
-            style={{
-              color: "var(--sla-estourado)",
-              backgroundColor: "color-mix(in srgb, var(--sla-estourado) 12%, transparent)",
-            }}
-          >
-            <AlertOctagon className="size-5" aria-hidden="true" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">SLA estourado</span>
-            <span
-              className="text-3xl font-semibold font-tabular"
-              style={{ color: slaEstourado > 0 ? "var(--sla-estourado)" : undefined }}
-            >
-              {slaEstourado}
-            </span>
-          </div>
+      <section className="flex flex-col gap-(--space-2)">
+        <h2 className="text-sm font-semibold text-foreground">SLA</h2>
+        <div className="grid grid-cols-2 gap-(--space-3) sm:grid-cols-3 lg:grid-cols-4">
+          <KpiTile
+            rotulo="Estourados"
+            valor={slaEstourado}
+            icon={AlertOctagon}
+            colorVar="sla-estourado"
+            href="/chamados?sla=estourado"
+          />
+          <KpiTile
+            rotulo="Prestes a estourar"
+            valor={slaPrestesAEstourar}
+            icon={AlertTriangle}
+            colorVar="sla-atencao"
+            href="/chamados?sla=prestes"
+          />
+          <KpiTile
+            rotulo="Sem categoria"
+            valor={semCategoria}
+            icon={Tag}
+            colorVar="muted-foreground"
+            href="/chamados?semCategoria=1"
+          />
+          <KpiTile
+            rotulo="Pausados"
+            valor={pausados}
+            icon={Pause}
+            colorVar={STATUS_META.pausado.colorVar}
+            href="/chamados?status=pausado"
+          />
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-(--space-3) md:grid-cols-3 lg:grid-cols-6">
-        {contagemPorStatus.map(({ statusKey, total }) => {
-          const meta = STATUS_META[statusKey]
-          const Icon = meta.icon
-          return (
-            <div
-              key={statusKey}
-              className="flex flex-col gap-(--space-2) rounded-lg border border-border bg-surface p-(--space-3)"
-            >
-              <div className="flex items-center gap-1.5">
-                <Icon
-                  className="size-4"
-                  style={{ color: `var(--${meta.colorVar})` }}
-                  aria-hidden="true"
-                />
-                <span className="truncate text-xs font-medium text-muted-foreground">
-                  {meta.rotuloPadrao}
-                </span>
-              </div>
-              <span
-                className="text-2xl font-semibold font-tabular"
-                style={{ color: `var(--${meta.colorVar})` }}
-              >
-                {total}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      </section>
 
       <div className="flex flex-col gap-(--space-2) rounded-lg border border-border bg-surface p-(--space-4)">
         <span className="text-sm font-medium text-foreground">Distribuição por status</span>
@@ -117,7 +174,10 @@ export default function DashboardPage() {
           {contagemPorStatus.map(({ statusKey, total }) => {
             const meta = STATUS_META[statusKey]
             return (
-              <div key={statusKey} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div
+                key={statusKey}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              >
                 <span
                   className="size-2 shrink-0 rounded-full"
                   style={{ backgroundColor: `var(--${meta.colorVar})` }}

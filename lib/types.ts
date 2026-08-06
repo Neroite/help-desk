@@ -24,6 +24,10 @@ export const PRIORIDADES: Prioridade[] = ["baixa", "media", "alta", "critica"]
 
 export type Papel = "admin" | "analista" | "solicitante"
 
+export type Mesa = "Service Desk" | "Field" | "N2"
+
+export const MESAS: Mesa[] = ["Service Desk", "Field", "N2"]
+
 export interface Empresa {
   id: string
   nome: string
@@ -109,21 +113,27 @@ export interface TicketEvento {
 export interface Ticket {
   numero: number
   titulo: string
+  assunto: string
   descricao: string
   empresaId: string
   solicitanteId: string
+  contatoId: string
   analistaId: string | null
+  mesa: Mesa
   statusKey: StatusKey
   prioridade: Prioridade | null
   catAtendimentoId: string | null
   catProblemaId: string | null
   criadoEm: string
+  atualizadoEm: string
   primeiraRespostaEm: string | null
   finalizadoEm: string | null
   slaRespostaVenceEm: string | null
   slaSolucaoVenceEm: string | null
   slaPausadoEm: string | null
   slaMinutosPausados: number
+  tarefasAbertas: number
+  tarefasConcluidas: number
 }
 
 export type SlaSeveridade = "ok" | "atencao" | "critico" | "estourado" | "pausado"

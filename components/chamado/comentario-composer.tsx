@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Lock, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ interface ComentarioComposerProps {
 export function ComentarioComposer({ onEnviar, mostrarNotaInterna = true }: ComentarioComposerProps) {
   const [corpo, setCorpo] = useState("")
   const [interno, setInterno] = useState(false)
+  const textareaId = useId()
 
   function enviar() {
     if (!corpo.trim()) return
@@ -32,8 +33,12 @@ export function ComentarioComposer({ onEnviar, mostrarNotaInterna = true }: Come
         interno ? "border-accent/50 bg-accent/5" : "border-border"
       )}
     >
+      <label htmlFor={textareaId} className="sr-only">
+        {interno ? "Nota interna" : "Resposta ao solicitante"}
+      </label>
       <Textarea
-        placeholder={interno ? "Nota interna — não visível ao solicitante" : "Responder ao solicitante..."}
+        id={textareaId}
+        placeholder={interno ? "Nota interna — não visível ao solicitante" : "Responder ao solicitante…"}
         value={corpo}
         onChange={(e) => setCorpo(e.target.value)}
         rows={3}
@@ -47,14 +52,14 @@ export function ComentarioComposer({ onEnviar, mostrarNotaInterna = true }: Come
             className="h-7 text-xs"
             onClick={() => setInterno((v) => !v)}
           >
-            <Lock className="size-3.5" data-icon="inline-start" />
+            <Lock className="size-3.5" data-icon="inline-start" aria-hidden="true" />
             {interno ? "Nota interna" : "Marcar como interno"}
           </Button>
         ) : (
           <span />
         )}
         <Button type="button" size="sm" className="h-7 text-xs" onClick={enviar}>
-          <Send className="size-3.5" data-icon="inline-start" />
+          <Send className="size-3.5" data-icon="inline-start" aria-hidden="true" />
           Enviar
         </Button>
       </div>

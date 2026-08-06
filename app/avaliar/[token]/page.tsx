@@ -45,7 +45,8 @@ export default function AvaliarPage({ params }: PageProps) {
           </>
         ) : enviado ? (
           <>
-            <CheckCircle2 className="size-10 text-status-finalizado" aria-hidden="true" />
+            {/* Verde semântico de sucesso — não text-status-finalizado, que agora é preto */}
+            <CheckCircle2 className="size-10 text-sla-ok" aria-hidden="true" />
             <h1 className="text-xl font-semibold text-foreground">Obrigado pela avaliação!</h1>
             <p className="text-sm text-muted-foreground">
               Sua opinião ajuda nossa equipe a melhorar o atendimento.

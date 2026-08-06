@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { SlaClockProvider } from "@/lib/sla-clock";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -26,12 +27,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <body
         className={`${firaSans.variable} ${firaCode.variable} antialiased`}
       >
-        <SlaClockProvider>{children}</SlaClockProvider>
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <SlaClockProvider>{children}</SlaClockProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

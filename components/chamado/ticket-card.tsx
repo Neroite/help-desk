@@ -3,6 +3,7 @@ import Link from "next/link"
 import { PrioridadeBadge } from "@/components/chamado/prioridade-badge"
 import { SlaBadge } from "@/components/chamado/sla-badge"
 import { empresaPorId, usuarioPorId } from "@/lib/mock/data"
+import { STATUS_CARD_TINT } from "@/lib/status"
 import type { Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -25,7 +26,8 @@ export function TicketCard({ ticket, arrastavel = false, href, className }: Tick
     <Link
       href={href ?? `/chamados/${ticket.numero}`}
       className={cn(
-        "flex flex-col gap-2 rounded-md border border-border bg-surface p-(--card-pad) text-sm shadow-sm transition-colors hover:border-primary/40",
+        "flex flex-col gap-2 rounded-md border-y border-r border-border border-l-[3px] p-(--card-pad) text-sm shadow-sm transition-colors hover:border-primary/40",
+        STATUS_CARD_TINT[ticket.statusKey],
         arrastavel && "cursor-grab active:cursor-grabbing",
         className
       )}
@@ -36,8 +38,8 @@ export function TicketCard({ ticket, arrastavel = false, href, className }: Tick
       </div>
       <p className="line-clamp-2 font-medium text-foreground">{ticket.titulo}</p>
       <p className="truncate text-xs text-muted-foreground">{empresa?.nome}</p>
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <span className="truncate text-xs text-muted-foreground">{analista?.nome ?? "Não atribuído"}</span>
+      <div className="flex min-w-0 items-center justify-between gap-2 pt-1">
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{analista?.nome ?? "Não atribuído"}</span>
         <SlaBadge rotulo="" venceEm={ticket.slaSolucaoVenceEm} statusKey={ticket.statusKey} />
       </div>
     </Link>

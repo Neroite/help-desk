@@ -76,7 +76,7 @@ export default function UsuariosPage() {
       <div className="flex items-center justify-between gap-(--space-4)">
         <h1 className="text-2xl font-semibold text-foreground">Usuários</h1>
         <Button onClick={abrirNovo} className="cursor-pointer">
-          <Plus data-icon="inline-start" />
+          <Plus data-icon="inline-start" aria-hidden="true" />
           Novo usuário
         </Button>
       </div>
@@ -120,7 +120,7 @@ export default function UsuariosPage() {
                       className="cursor-pointer"
                       onClick={() => abrirEdicao(usuario)}
                     >
-                      <Pencil data-icon="inline-start" />
+                      <Pencil data-icon="inline-start" aria-hidden="true" />
                       Editar
                     </Button>
                   </TableCell>
@@ -142,19 +142,32 @@ export default function UsuariosPage() {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="usuario-nome">Nome</FieldLabel>
-              <Input id="usuario-nome" defaultValue={usuarioEditando?.nome ?? ""} />
+              <Input
+                id="usuario-nome"
+                name="nome"
+                autoComplete="off"
+                defaultValue={usuarioEditando?.nome ?? ""}
+              />
             </Field>
             <Field>
               <FieldLabel htmlFor="usuario-email">E-mail</FieldLabel>
-              <Input id="usuario-email" type="email" defaultValue={usuarioEditando?.email ?? ""} />
+              <Input
+                id="usuario-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                spellCheck={false}
+                defaultValue={usuarioEditando?.email ?? ""}
+              />
             </Field>
             <Field>
-              <FieldLabel>Papel</FieldLabel>
+              <FieldLabel htmlFor="usuario-papel">Papel</FieldLabel>
               <Select
+                name="papel"
                 value={papelSelecionado}
                 onValueChange={(value) => setPapelSelecionado(value as Papel)}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="usuario-papel" className="w-full">
                   <SelectValue>
                     {(value: string) =>
                       ({ admin: "Admin", analista: "Analista", solicitante: "Solicitante" }[value] ?? value)
@@ -171,12 +184,13 @@ export default function UsuariosPage() {
               </Select>
             </Field>
             <Field>
-              <FieldLabel>Empresa</FieldLabel>
+              <FieldLabel htmlFor="usuario-empresa">Empresa</FieldLabel>
               <Select
+                name="empresaId"
                 disabled={papelSelecionado !== "solicitante"}
                 defaultValue={usuarioEditando?.empresaId ?? undefined}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="usuario-empresa" className="w-full">
                   <SelectValue placeholder="Selecione a empresa">
                     {(value: string) => empresas.find((e) => e.id === value)?.nome}
                   </SelectValue>

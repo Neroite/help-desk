@@ -6,8 +6,12 @@ interface AnexoListProps {
   anexos: Anexo[]
 }
 
+const formatadorTamanho = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
+
 function formatarTamanho(kb: number): string {
-  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`
+  return kb >= 1024
+    ? `${formatadorTamanho.format(kb / 1024)} MB`
+    : `${formatadorTamanho.format(kb)} KB`
 }
 
 // Upload real (signed URL, Supabase Storage) entra na fase 5 — aqui é só a

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Star } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -21,6 +21,8 @@ export function AvaliacaoEstrelas({
   className,
 }: AvaliacaoEstrelasProps) {
   const [hover, setHover] = useState<number | null>(null)
+  const [focoAtual, setFocoAtual] = useState(valor > 0 ? valor : 1)
+  const botoesRef = useRef<Array<HTMLButtonElement | null>>([])
   const exibido = hover ?? valor
 
   if (somenteLeitura) {
@@ -39,6 +41,32 @@ export function AvaliacaoEstrelas({
     )
   }
 
+  // Roving tabindex: só a estrela selecionada/focada é tab-stop (tabIndex 0),
+  // as demais ficam em -1. Setas ←/→ (e ↑/↓) movem o foco e já selecionam,
+  // seguindo o padrão ARIA de radiogroup ("selection follows focus").
+  function selecionar(n: number) {
+    setFocoAtual(n)
+    onChange?.(n)
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, n: number) {
+    let proximo: number
+    if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+      proximo = n < 5 ? n + 1 : 1
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+      proximo = n > 1 ? n - 1 : 5
+    } else if (event.key === "Home") {
+      proximo = 1
+    } else if (event.key === "End") {
+      proximo = 5
+    } else {
+      return
+    }
+    event.preventDefault()
+    selecionar(proximo)
+    botoesRef.current[proximo - 1]?.focus()
+  }
+
   return (
     <div
       role="radiogroup"
@@ -48,14 +76,21 @@ export function AvaliacaoEstrelas({
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
+          ref={(el) => {
+            botoesRef.current[n - 1] = el
+          }}
           type="button"
           role="radio"
           aria-checked={valor === n}
           aria-label={`${n} estrela${n > 1 ? "s" : ""}`}
+          tabIndex={n === focoAtual ? 0 : -1}
           className="cursor-pointer rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-ring"
           onMouseEnter={() => setHover(n)}
           onMouseLeave={() => setHover(null)}
-          onClick={() => onChange?.(n)}
+          onFocus={() => setHover(n)}
+          onBlur={() => setHover(null)}
+          onClick={() => selecionar(n)}
+          onKeyDown={(event) => handleKeyDown(event, n)}
         >
           <Star
             className={cn(
