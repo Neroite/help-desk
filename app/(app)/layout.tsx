@@ -330,6 +330,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     Perfil
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    render={<Link href="/logout" />}
                     className="cursor-pointer"
                     variant="destructive"
                   >

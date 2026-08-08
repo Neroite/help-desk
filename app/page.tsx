@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
-// Sem auth real ainda (papel do usuário logado é mockado nas telas) —
-// a raiz do site entra direto na fila de chamados, a tela que o
-// analista/admin usa o dia inteiro.
+// O middleware já redireciona "/" pro destino certo (login, /chamados ou
+// /portal) antes de chegar aqui — isso só cobre o caso raro de usuário
+// autenticado sem linha em helpdesk.usuario (papel indefinido).
 export default function Home() {
   redirect("/chamados");
 }
