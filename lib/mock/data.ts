@@ -257,31 +257,31 @@ const ticketsGerados: Ticket[] = numerosGerados.map((numero, i) => {
 export const tickets: Ticket[] = [ticketHero, ...ticketsGerados].sort((a, b) => b.numero - a.numero)
 
 export const comentarios: Comentario[] = [
-  { id: "c1", ticketId: "482", autorId: "u-maria", corpo: "A impressora continua com erro mesmo depois de trocar o papel.", interno: false, criadoEm: h(-5) },
-  { id: "c2", ticketId: "482", autorId: "u-joao", corpo: "Já verificou se o sensor da bandeja está limpo? Vou fazer acesso remoto.", interno: false, criadoEm: h(-4.8) },
-  { id: "c3", ticketId: "482", autorId: "u-joao", corpo: "Sensor sujo confirmado via acesso remoto. Orientando limpeza.", interno: true, criadoEm: h(-4.5) },
-  { id: "c4", ticketId: "482", autorId: "u-maria", corpo: "Limpei o sensor conforme instruído, voltou a funcionar. Obrigada!", interno: false, criadoEm: h(-0.5) },
+  { id: "c1", ticketId: 482, autorId: "u-maria", corpo: "A impressora continua com erro mesmo depois de trocar o papel.", interno: false, criadoEm: h(-5) },
+  { id: "c2", ticketId: 482, autorId: "u-joao", corpo: "Já verificou se o sensor da bandeja está limpo? Vou fazer acesso remoto.", interno: false, criadoEm: h(-4.8) },
+  { id: "c3", ticketId: 482, autorId: "u-joao", corpo: "Sensor sujo confirmado via acesso remoto. Orientando limpeza.", interno: true, criadoEm: h(-4.5) },
+  { id: "c4", ticketId: 482, autorId: "u-maria", corpo: "Limpei o sensor conforme instruído, voltou a funcionar. Obrigada!", interno: false, criadoEm: h(-0.5) },
 ]
 
 export const ticketEventos: TicketEvento[] = [
-  { id: "e1", ticketId: "482", tipo: "criado", de: null, para: "aguardando_aprovacao", autorId: "u-maria", criadoEm: h(-5) },
-  { id: "e2", ticketId: "482", tipo: "atribuicao", de: null, para: "u-joao", autorId: "u-joao", criadoEm: h(-4.9) },
-  { id: "e3", ticketId: "482", tipo: "prioridade", de: null, para: "alta", autorId: "u-joao", criadoEm: h(-4.9) },
-  { id: "e4", ticketId: "482", tipo: "status", de: "a_fazer", para: "em_andamento", autorId: "u-joao", criadoEm: h(-4.8) },
+  { id: "e1", ticketId: 482, tipo: "criado", de: null, para: "aguardando_aprovacao", autorId: "u-maria", criadoEm: h(-5) },
+  { id: "e2", ticketId: 482, tipo: "atribuicao", de: null, para: "u-joao", autorId: "u-joao", criadoEm: h(-4.9) },
+  { id: "e3", ticketId: 482, tipo: "prioridade", de: null, para: "alta", autorId: "u-joao", criadoEm: h(-4.9) },
+  { id: "e4", ticketId: 482, tipo: "status", de: "a_fazer", para: "em_andamento", autorId: "u-joao", criadoEm: h(-4.8) },
 ]
 
 export const apontamentos: ApontamentoHoras[] = [
-  { id: "a1", ticketId: "482", analistaId: "u-joao", inicio: h(-4.8), fim: h(-4.3), minutos: 30, descricao: "Diagnóstico via acesso remoto", faturavel: true },
-  { id: "a2", ticketId: "482", analistaId: "u-joao", inicio: h(-0.6), fim: h(-0.5), minutos: 6, descricao: "Confirmação de solução com o cliente", faturavel: false },
+  { id: "a1", ticketId: 482, analistaId: "u-joao", inicio: h(-4.8), fim: h(-4.3), minutos: 30, descricao: "Diagnóstico via acesso remoto", faturavel: true },
+  { id: "a2", ticketId: 482, analistaId: "u-joao", inicio: h(-0.6), fim: h(-0.5), minutos: 6, descricao: "Confirmação de solução com o cliente", faturavel: false },
 ]
 
 export const anexos: Anexo[] = [
-  { id: "an1", ticketId: "482", comentarioId: null, nome: "erro-impressora.jpg", tamanhoKb: 842, tipo: "imagem" },
-  { id: "an2", ticketId: "482", comentarioId: "c3", nome: "log-diagnostico.txt", tamanhoKb: 12, tipo: "documento" },
+  { id: "an1", ticketId: 482, comentarioId: null, nome: "erro-impressora.jpg", tamanhoKb: 842, tipo: "imagem" },
+  { id: "an2", ticketId: 482, comentarioId: "c3", nome: "log-diagnostico.txt", tamanhoKb: 12, tipo: "documento" },
 ]
 
 export const avaliacoes: Avaliacao[] = [
-  { ticketId: "478", estrelas: 5, comentario: "Atendimento rápido, resolveu na hora." },
+  { ticketId: 478, estrelas: 5, comentario: "Atendimento rápido, resolveu na hora." },
 ]
 
 export function usuarioPorId(id: string | null): Usuario | undefined {

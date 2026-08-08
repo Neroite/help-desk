@@ -65,7 +65,7 @@ export interface SlaPolicy {
 
 export interface Comentario {
   id: string
-  ticketId: string
+  ticketId: number
   autorId: string
   corpo: string
   interno: boolean
@@ -74,7 +74,7 @@ export interface Comentario {
 
 export interface ApontamentoHoras {
   id: string
-  ticketId: string
+  ticketId: number
   analistaId: string
   inicio: string
   fim: string | null
@@ -85,7 +85,7 @@ export interface ApontamentoHoras {
 
 export interface Anexo {
   id: string
-  ticketId: string
+  ticketId: number | null
   comentarioId: string | null
   nome: string
   tamanhoKb: number
@@ -93,7 +93,7 @@ export interface Anexo {
 }
 
 export interface Avaliacao {
-  ticketId: string
+  ticketId: number
   estrelas: 1 | 2 | 3 | 4 | 5
   comentario: string
 }
@@ -102,7 +102,7 @@ export type TicketEventoTipo = "criado" | "status" | "atribuicao" | "prioridade"
 
 export interface TicketEvento {
   id: string
-  ticketId: string
+  ticketId: number
   tipo: TicketEventoTipo
   de: string | null
   para: string
@@ -113,27 +113,29 @@ export interface TicketEvento {
 export interface Ticket {
   numero: number
   titulo: string
-  assunto: string
   descricao: string
   empresaId: string
   solicitanteId: string
-  contatoId: string
   analistaId: string | null
-  mesa: Mesa
   statusKey: StatusKey
   prioridade: Prioridade | null
   catAtendimentoId: string | null
   catProblemaId: string | null
   criadoEm: string
-  atualizadoEm: string
   primeiraRespostaEm: string | null
   finalizadoEm: string | null
   slaRespostaVenceEm: string | null
   slaSolucaoVenceEm: string | null
   slaPausadoEm: string | null
   slaMinutosPausados: number
-  tarefasAbertas: number
-  tarefasConcluidas: number
+  // Campos só do mock antigo (sem coluna real em helpdesk.ticket) — a UI
+  // que ainda os usa trata como enriquecimento opcional, não dado real.
+  assunto?: string
+  contatoId?: string
+  mesa?: Mesa
+  atualizadoEm?: string
+  tarefasAbertas?: number
+  tarefasConcluidas?: number
 }
 
 export type SlaSeveridade = "ok" | "atencao" | "critico" | "estourado" | "pausado"
