@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { usuarios } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import { PRIORIDADE_META, STATUS_META } from "@/lib/status"
 import {
   PRIORIDADES,
@@ -26,8 +26,6 @@ import { cn } from "@/lib/utils"
 
 const SEM_PRIORIDADE = "sem_prioridade"
 const SEM_ANALISTA = "sem_analista"
-
-const analistas = usuarios.filter((u) => u.papel === "analista")
 
 interface TicketQuickEditProps {
   ticket: Ticket
@@ -45,6 +43,8 @@ interface TicketQuickEditProps {
 // ao padrão já usado em chamados/[numero]/page.tsx.
 export function TicketQuickEdit({ ticket, onChange }: TicketQuickEditProps) {
   const [open, setOpen] = useState(false)
+  const { usuarios } = useReferenceData()
+  const analistas = usuarios.filter((u) => u.papel === "analista")
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -55,11 +55,11 @@ export function TicketQuickEdit({ ticket, onChange }: TicketQuickEditProps) {
         <Pencil className="size-3.5" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Status</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={ticket.statusKey}
           onValueChange={(value) => onChange(ticket.numero, { statusKey: value as StatusKey })}
         >
+          <DropdownMenuLabel>Status</DropdownMenuLabel>
           {STATUS_KEYS.map((key) => (
             <DropdownMenuRadioItem key={key} value={key} className="cursor-pointer">
               {STATUS_META[key].rotuloPadrao}
@@ -68,7 +68,6 @@ export function TicketQuickEdit({ ticket, onChange }: TicketQuickEditProps) {
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Prioridade</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={ticket.prioridade ?? SEM_PRIORIDADE}
           onValueChange={(value) =>
@@ -77,6 +76,7 @@ export function TicketQuickEdit({ ticket, onChange }: TicketQuickEditProps) {
             })
           }
         >
+          <DropdownMenuLabel>Prioridade</DropdownMenuLabel>
           <DropdownMenuRadioItem value={SEM_PRIORIDADE} className="cursor-pointer">
             Sem prioridade
           </DropdownMenuRadioItem>
@@ -88,7 +88,6 @@ export function TicketQuickEdit({ ticket, onChange }: TicketQuickEditProps) {
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Operador</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={ticket.analistaId ?? SEM_ANALISTA}
           onValueChange={(value) =>
@@ -97,6 +96,7 @@ export function TicketQuickEdit({ ticket, onChange }: TicketQuickEditProps) {
             })
           }
         >
+          <DropdownMenuLabel>Operador</DropdownMenuLabel>
           <DropdownMenuRadioItem value={SEM_ANALISTA} className="cursor-pointer">
             Não atribuído
           </DropdownMenuRadioItem>

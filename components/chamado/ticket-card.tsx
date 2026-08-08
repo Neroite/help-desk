@@ -1,8 +1,10 @@
+"use client"
+
 import Link from "next/link"
 
 import { PrioridadeBadge } from "@/components/chamado/prioridade-badge"
 import { SlaBadge } from "@/components/chamado/sla-badge"
-import { empresaPorId, usuarioPorId } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import { STATUS_CARD_TINT } from "@/lib/status"
 import type { Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -19,6 +21,7 @@ interface TicketCardProps {
 // `href` tem default para a rota do analista; o portal do cliente passa
 // `/portal/chamados/{numero}` para não vazar o solicitante para a tela interna.
 export function TicketCard({ ticket, arrastavel = false, href, className }: TicketCardProps) {
+  const { empresaPorId, usuarioPorId } = useReferenceData()
   const empresa = empresaPorId(ticket.empresaId)
   const analista = usuarioPorId(ticket.analistaId)
 

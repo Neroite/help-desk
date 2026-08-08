@@ -13,16 +13,11 @@ import { toast } from "sonner"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
-import { usuarioPorId } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_META } from "@/lib/status"
 import type { Anexo, Comentario, StatusKey, TicketEvento } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-// "Usuário logado" mock — mesmo id usado como autor de novos comentários na
-// página de detalhe e como analista de referência no dashboard. Só serve
-// pra decidir quais comentários mostram ações de editar/apagar no hover.
-const ANALISTA_LOGADO_ID = "u-joao"
 
 export type FiltroTimeline = "todos" | "comentarios" | "anexos"
 
@@ -75,7 +70,10 @@ function Tempo({ iso, agora, className }: { iso: string; agora: Date | null; cla
   )
 }
 
-function descreverEvento(evento: TicketEvento): string {
+function descreverEvento(
+  evento: TicketEvento,
+  usuarioPorId: (id: string | null | undefined) => { nome: string } | undefined
+): string {
   const autor = usuarioPorId(evento.autorId)?.nome ?? "Alguém"
   switch (evento.tipo) {
     case "criado":
@@ -130,6 +128,7 @@ function corEvento(evento: TicketEvento): string {
 // costura entre os dois). Ver seção 2 do design.
 export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "todos" }: TicketTimelineProps) {
   const agora = useSlaClock()
+  const { usuarioPorId, usuarioAtual } = useReferenceData()
 
   let linhas: ItemLinha[] = [
     ...comentarios.map((c): ItemLinha => ({ tipo: "comentario", data: c.criadoEm, item: c })),
@@ -176,7 +175,7 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
                 className="flex flex-1 flex-wrap items-center gap-2 rounded-md border border-border bg-surface py-(--space-2) pr-(--space-3) pl-(--space-3) text-xs"
                 style={{ borderLeftWidth: 4, borderLeftColor: `var(--${cor})` }}
               >
-                <span className="text-foreground">{descreverEvento(evento)}</span>
+                <span className="text-foreground">{descreverEvento(evento, usuarioPorId)}</span>
                 <Tempo iso={evento.criadoEm} agora={agora} className="ml-auto text-muted-foreground" />
               </div>
             </li>
@@ -185,7 +184,7 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
 
         const comentario = linha.item
         const autor = usuarioPorId(comentario.autorId)
-        const proprio = comentario.autorId === ANALISTA_LOGADO_ID
+        const proprio = comentario.autorId === usuarioAtual?.id
         // "--status-andamento" virou verde no mapa vibrante — usar "--secondary"
         // (azul) pra comentário público, senão colide com o status "em andamento".
         const corBorda = comentario.interno ? "var(--accent)" : "var(--secondary)"

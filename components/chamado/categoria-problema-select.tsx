@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { categoriasProblema } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 
 interface CategoriaProblemaSelectProps {
   id?: string
@@ -25,6 +25,7 @@ export function CategoriaProblemaSelect({
   value,
   onValueChange,
 }: CategoriaProblemaSelectProps) {
+  const { categoriasProblema } = useReferenceData()
   return (
     <Select name="catProblemaId" value={value} onValueChange={(v) => onValueChange(v ?? "")}>
       <SelectTrigger id={id} className="w-full">

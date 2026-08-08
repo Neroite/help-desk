@@ -34,7 +34,7 @@ const COLUNAS: ColunaDef[] = [
   { field: "categoria", label: "Categoria / Subcategoria", className: "min-w-40" },
   { field: "prioridade", label: "Priori.", className: "w-28" },
   { field: "status", label: "St.", className: "w-36" },
-  { field: "operador", label: "Operador / Mesa", className: "min-w-36" },
+  { field: "operador", label: "Operador", className: "min-w-36" },
   { field: "sla", label: "Resposta / Solução", className: "min-w-48" },
   { field: "criado", label: "Criado", className: "w-28" },
 ]

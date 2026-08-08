@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useId, useState, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
 
 import { NovoChamadoForm } from "@/components/chamado/novo-chamado-form"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ export function useNovoChamado() {
 // tela também existe como página cheia (/chamados/novo): um id fixo
 // colidiria se as duas instâncias coexistissem.
 export function NovoChamadoProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const formId = useId()
   const [open, setOpen] = useState(false)
   const [sujo, setSujo] = useState(false)
@@ -42,6 +44,11 @@ export function NovoChamadoProvider({ children }: { children: ReactNode }) {
     setSujo(false)
     setFormKey((key) => key + 1)
     setOpen(false)
+  }
+
+  function handleCriado(numero: number) {
+    fecharLimpando()
+    router.push(`/chamados/${numero}`)
   }
 
   function handleOpenChange(next: boolean) {
@@ -67,7 +74,7 @@ export function NovoChamadoProvider({ children }: { children: ReactNode }) {
           </DialogHeader>
 
           <div className="-mx-4 min-h-0 overflow-y-auto px-4">
-            <NovoChamadoForm key={formKey} formId={formId} onCriado={fecharLimpando} onSujoChange={setSujo} />
+            <NovoChamadoForm key={formKey} formId={formId} onCriado={handleCriado} onSujoChange={setSujo} />
           </div>
 
           <DialogFooter>

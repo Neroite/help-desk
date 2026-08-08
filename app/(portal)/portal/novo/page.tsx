@@ -18,15 +18,19 @@ import {
 } from "@/components/ui/field"
 import { AnexoList } from "@/components/chamado/anexo-list"
 import { CategoriaProblemaSelect } from "@/components/chamado/categoria-problema-select"
+import { useReferenceData } from "@/lib/reference-data/provider"
+import { criarChamado } from "@/lib/tickets/actions"
 
 // Formulário do solicitante — sem prioridade nem categoria de atendimento,
 // isso é decidido no triage pelo analista (outra tela).
 export default function NovoChamadoPage() {
   const router = useRouter()
+  const { usuarioAtual } = useReferenceData()
   const [titulo, setTitulo] = useState("")
   const [descricao, setDescricao] = useState("")
   const [catProblemaId, setCatProblemaId] = useState("")
   const [tentouEnviar, setTentouEnviar] = useState(false)
+  const [enviando, setEnviando] = useState(false)
 
   const erroTitulo = tentouEnviar && titulo.trim() === "" ? "Informe um título." : undefined
   const erroDescricao = tentouEnviar && descricao.trim() === "" ? "Informe uma descrição." : undefined
@@ -43,16 +47,28 @@ export default function NovoChamadoPage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!podeEnviar) {
+    if (!podeEnviar || enviando || !usuarioAtual) {
       setTentouEnviar(true)
       return
     }
 
-    // Mock — sem backend ainda, só simula a abertura e volta pra lista.
-    toast.success("Chamado aberto com sucesso!")
-    router.push("/portal")
+    setEnviando(true)
+    try {
+      const { numero } = await criarChamado({
+        titulo,
+        descricao,
+        empresaId: usuarioAtual.empresaId!,
+        solicitanteId: usuarioAtual.id,
+        catProblemaId: catProblemaId || null,
+      })
+      toast.success("Chamado aberto com sucesso!")
+      router.push(`/portal/chamados/${numero}`)
+    } catch {
+      toast.error("Não foi possível abrir o chamado.")
+      setEnviando(false)
+    }
   }
 
   return (

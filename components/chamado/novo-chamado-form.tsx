@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, type FormEvent } from "react"
+import { toast } from "sonner"
 
 import { AnexoList } from "@/components/chamado/anexo-list"
 import { CategoriaProblemaSelect } from "@/components/chamado/categoria-problema-select"
@@ -21,11 +22,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { empresas, usuarios } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
+import { criarChamado } from "@/lib/tickets/actions"
 
 interface NovoChamadoFormProps {
   formId: string
-  onCriado: () => void
+  onCriado: (numero: number) => void
   onSujoChange?: (sujo: boolean) => void
 }
 
@@ -34,12 +36,14 @@ interface NovoChamadoFormProps {
 // nome do cliente, feita pelo analista: não pede prioridade nem categoria
 // de atendimento, isso é decidido no triage.
 export function NovoChamadoForm({ formId, onCriado, onSujoChange }: NovoChamadoFormProps) {
+  const { empresas, usuarios } = useReferenceData()
   const [titulo, setTitulo] = useState("")
   const [descricao, setDescricao] = useState("")
   const [empresaId, setEmpresaId] = useState("")
   const [solicitanteId, setSolicitanteId] = useState("")
   const [catProblemaId, setCatProblemaId] = useState("")
   const [tentouEnviar, setTentouEnviar] = useState(false)
+  const [enviando, setEnviando] = useState(false)
 
   const solicitantes = usuarios.filter(
     (usuario) => usuario.papel === "solicitante" && usuario.empresaId === empresaId
@@ -62,22 +66,27 @@ export function NovoChamadoForm({ formId, onCriado, onSujoChange }: NovoChamadoF
     onSujoChange?.(sujo)
   }, [sujo, onSujoChange])
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!podeEnviar) {
+    if (!podeEnviar || enviando) {
       setTentouEnviar(true)
       return
     }
 
-    // Mock — sem backend ainda, só simula a criação.
-    console.log("Novo chamado (mock, sem persistência):", {
-      titulo,
-      descricao,
-      empresaId,
-      solicitanteId,
-      catProblemaId: catProblemaId || null,
-    })
-    onCriado()
+    setEnviando(true)
+    try {
+      const { numero } = await criarChamado({
+        titulo,
+        descricao,
+        empresaId,
+        solicitanteId,
+        catProblemaId: catProblemaId || null,
+      })
+      onCriado(numero)
+    } catch {
+      toast.error("Não foi possível criar o chamado.")
+      setEnviando(false)
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { X } from "lucide-react"
 
@@ -14,22 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { categoriasProblema, empresas, usuarios } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import { STATUS_META } from "@/lib/status"
-import { MESAS, type StatusKey } from "@/lib/types"
-
-const analistas = usuarios.filter((u) => u.papel === "analista")
-const solicitantes = usuarios.filter((u) => u.papel === "solicitante")
-
-const operadorOpcoes = [
-  { value: "eu", label: "Meus chamados" },
-  ...analistas.map((a) => ({ value: a.id, label: a.nome })),
-]
-
-const categoriaOpcoes = categoriasProblema.map((c) => ({
-  value: c.id,
-  label: c.paiId ? `— ${c.nome}` : c.nome,
-}))
+import type { StatusKey } from "@/lib/types"
 
 const slaOpcoes = [
   { value: "estourado", label: "Estourado" },
@@ -46,22 +33,6 @@ const criadoOpcoes = [
   { value: "mais30d", label: "Mais de 30 dias" },
 ]
 
-// Os 8 filtros pedidos pelo usuário (comparação com o Milvus): Ticket,
-// Solicitante, Assunto, Cliente, Categoria, Operador/Mesa (dois selects
-// adjacentes, mesmo grupo visual da coluna "Operador / Mesa" da tabela),
-// Resposta de solução (severidade de SLA -- reaproveita os mesmos valores
-// `sla=estourado`/`sla=prestes` que o dashboard já linka) e Criado (faixas
-// relativas, sem date-picker instalado no design system ainda).
-const SELECT_FILTROS = [
-  { param: "solicitante", label: "Solicitante", opcoes: solicitantes.map((u) => ({ value: u.id, label: u.nome })) },
-  { param: "empresa", label: "Cliente", opcoes: empresas.map((e) => ({ value: e.id, label: e.nome })) },
-  { param: "categoria", label: "Categoria", opcoes: categoriaOpcoes },
-  { param: "analista", label: "Operador", opcoes: operadorOpcoes },
-  { param: "mesa", label: "Mesa", opcoes: MESAS.map((m) => ({ value: m, label: m })) },
-  { param: "sla", label: "Resposta / Solução", opcoes: slaOpcoes },
-  { param: "criado", label: "Criado", opcoes: criadoOpcoes },
-] as const
-
 const TEXT_FILTROS = [
   { param: "ticket", label: "Ticket" },
   { param: "assunto", label: "Assunto" },
@@ -72,6 +43,29 @@ const TEXT_FILTROS = [
 export function FiltroBar() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { usuarios, empresas, categoriasProblema } = useReferenceData()
+
+  const analistas = useMemo(() => usuarios.filter((u) => u.papel === "analista"), [usuarios])
+  const solicitantes = useMemo(() => usuarios.filter((u) => u.papel === "solicitante"), [usuarios])
+
+  const selectFiltros = useMemo(() => {
+    const operadorOpcoes = [
+      { value: "eu", label: "Meus chamados" },
+      ...analistas.map((a) => ({ value: a.id, label: a.nome })),
+    ]
+    const categoriaOpcoes = categoriasProblema.map((c) => ({
+      value: c.id,
+      label: c.paiId ? `— ${c.nome}` : c.nome,
+    }))
+    return [
+      { param: "solicitante", label: "Solicitante", opcoes: solicitantes.map((u) => ({ value: u.id, label: u.nome })) },
+      { param: "empresa", label: "Cliente", opcoes: empresas.map((e) => ({ value: e.id, label: e.nome })) },
+      { param: "categoria", label: "Categoria", opcoes: categoriaOpcoes },
+      { param: "analista", label: "Operador", opcoes: operadorOpcoes },
+      { param: "sla", label: "Resposta / Solução", opcoes: slaOpcoes },
+      { param: "criado", label: "Criado", opcoes: criadoOpcoes },
+    ] as const
+  }, [analistas, solicitantes, empresas, categoriasProblema])
 
   function setParam(param: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString())
@@ -86,7 +80,7 @@ export function FiltroBar() {
 
   const filtrosAtivos =
     TEXT_FILTROS.some((f) => searchParams.get(f.param)) ||
-    SELECT_FILTROS.some((f) => searchParams.get(f.param))
+    selectFiltros.some((f) => searchParams.get(f.param))
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -94,7 +88,7 @@ export function FiltroBar() {
         <TextFiltro key={filtro.param} param={filtro.param} label={filtro.label} setParam={setParam} />
       ))}
 
-      {SELECT_FILTROS.map((filtro) => (
+      {selectFiltros.map((filtro) => (
         <Select
           key={filtro.param}
           value={searchParams.get(filtro.param) ?? "todos"}
@@ -180,13 +174,17 @@ function TextFiltro({ param, label, setParam }: TextFiltroProps) {
 
 const CHIP_PARAMS_IGNORADOS = new Set(["view", "sort", "dir", "page"])
 
-// Pílulas de filtros ativos, cobrindo tanto os 8 controles acima quanto os
+// Pílulas de filtros ativos, cobrindo tanto os controles acima quanto os
 // parâmetros só-de-URL usados pelos links do dashboard (status, aberto,
 // semCategoria) -- esses não têm um <Select> dedicado aqui, mas o usuário
 // ainda precisa ver por que a fila está filtrada e poder limpar cada um.
 export function FiltroChips() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { usuarios, empresas, categoriasProblema } = useReferenceData()
+
+  const analistas = useMemo(() => usuarios.filter((u) => u.papel === "analista"), [usuarios])
+  const solicitantes = useMemo(() => usuarios.filter((u) => u.papel === "solicitante"), [usuarios])
 
   function removerParam(param: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -219,7 +217,6 @@ export function FiltroChips() {
             ? "Operador: meus chamados"
             : `Operador: ${analistas.find((a) => a.id === valor)?.nome ?? valor}`,
       })
-    else if (param === "mesa") chips.push({ param, rotulo: `Mesa: ${valor}` })
     else if (param === "sla")
       chips.push({ param, rotulo: `SLA: ${slaOpcoes.find((o) => o.value === valor)?.label ?? valor}` })
     else if (param === "criado")

@@ -9,12 +9,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { usuarios } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import { PRIORIDADE_META, STATUS_META } from "@/lib/status"
 import { PRIORIDADES, STATUS_KEYS, type Prioridade, type StatusKey } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-const analistas = usuarios.filter((u) => u.papel === "analista")
 
 interface BulkActionBarProps {
   count: number
@@ -25,9 +23,12 @@ interface BulkActionBarProps {
 }
 
 // Barra flutuante de ações em lote — só existe enquanto houver linhas
-// selecionadas na fila (ver chamados/page.tsx). Ações são mock (toast, sem
-// persistência real), igual ao restante da fase de telas.
+// selecionadas na fila (ver chamados/page.tsx). Os handlers vêm do
+// ChamadosClient e chamam as server actions de verdade.
 export function BulkActionBar({ count, onClear, onAssign, onStatus, onPrioridade }: BulkActionBarProps) {
+  const { usuarios } = useReferenceData()
+  const analistas = usuarios.filter((u) => u.papel === "analista")
+
   if (count === 0) return null
 
   return (

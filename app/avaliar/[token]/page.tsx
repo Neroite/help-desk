@@ -17,6 +17,13 @@ interface PageProps {
 // o número do chamado. Usamos o hook `use()` (em vez de await) porque a
 // página precisa ser client component para o fluxo interativo de
 // estrelas + confirmação, e params ainda chega como Promise no Next 15.
+//
+// AINDA NÃO RELIGADA ao Supabase de propósito: abrir RLS pública pro
+// ticket/avaliacao usando `numero` sequencial como "token" deixaria
+// qualquer pessoa listar chamados finalizados de qualquer empresa
+// (numero é previsível/incremental). Token de verdade, opaco e
+// vinculado ao envio do e-mail, é escopo da Fase 7 (e-mail
+// transacional) — até lá esta tela continua sobre lib/mock/data.
 export default function AvaliarPage({ params }: PageProps) {
   const { token } = use(params)
   const numero = Number(token)

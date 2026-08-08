@@ -193,6 +193,89 @@ export async function fazerTriage(input: FazerTriageInput): Promise<void> {
   revalidatePath("/chamados")
 }
 
+export async function atribuirAnalista(ticketNumero: number, analistaId: string | null): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("ticket")
+    .update({ analista_id: analistaId })
+    .eq("numero", ticketNumero)
+  if (error) throw error
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  await supabase.from("ticket_evento").insert({
+    ticket_id: ticketNumero,
+    tipo: "atribuicao",
+    de: null,
+    para: analistaId,
+    autor_id: user?.id,
+  })
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+  revalidatePath("/chamados")
+}
+
+// Muda só a prioridade (sem tocar categoria/atribuição, diferente do
+// triage completo) — recalcula o SLA do mesmo jeito, porque qualquer
+// troca de prioridade muda a política aplicável.
+export async function definirPrioridade(ticketNumero: number, prioridade: Prioridade): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: ticket, error: erroTicket } = await supabase
+    .from("ticket")
+    .select(
+      "criado_em, sla_resposta_vence_em, sla_solucao_vence_em, sla_pausado_em, sla_minutos_pausados, prioridade"
+    )
+    .eq("numero", ticketNumero)
+    .single()
+  if (erroTicket) throw erroTicket
+
+  const { data: politica, error: erroPolitica } = await supabase
+    .from("sla_policy")
+    .select("minutos_resposta, minutos_solucao")
+    .eq("prioridade", prioridade)
+    .single()
+  if (erroPolitica) throw erroPolitica
+
+  const prazos = recalcularPorPrioridade(
+    {
+      criadoEm: new Date(ticket.criado_em),
+      slaRespostaVenceEm: new Date(ticket.sla_resposta_vence_em),
+      slaSolucaoVenceEm: new Date(ticket.sla_solucao_vence_em),
+      slaPausadoEm: ticket.sla_pausado_em ? new Date(ticket.sla_pausado_em) : null,
+      slaMinutosPausados: ticket.sla_minutos_pausados,
+    },
+    { minutosResposta: politica.minutos_resposta, minutosSolucao: politica.minutos_solucao }
+  )
+
+  const { error } = await supabase
+    .from("ticket")
+    .update({
+      prioridade,
+      sla_resposta_vence_em: prazos.respostaVenceEm.toISOString(),
+      sla_solucao_vence_em: prazos.solucaoVenceEm.toISOString(),
+    })
+    .eq("numero", ticketNumero)
+  if (error) throw error
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  await supabase.from("ticket_evento").insert({
+    ticket_id: ticketNumero,
+    tipo: "prioridade",
+    de: ticket.prioridade,
+    para: prioridade,
+    autor_id: user?.id,
+  })
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+  revalidatePath("/chamados")
+}
+
 export async function mudarStatus(ticketNumero: number, novoStatus: StatusKey): Promise<void> {
   const supabase = await createClient()
 

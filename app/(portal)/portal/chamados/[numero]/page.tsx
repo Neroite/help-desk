@@ -5,18 +5,18 @@ import { ArrowLeft } from "lucide-react"
 import { StatusBadge } from "@/components/chamado/status-badge"
 import { PrioridadeBadge } from "@/components/chamado/prioridade-badge"
 import { SlaBadge } from "@/components/chamado/sla-badge"
-import { TicketTimeline } from "@/components/chamado/ticket-timeline"
-import { ComentarioComposer } from "@/components/chamado/comentario-composer"
 import { AnexoList } from "@/components/chamado/anexo-list"
 import { AvaliacaoEstrelas } from "@/components/chamado/avaliacao-estrelas"
 import { Button } from "@/components/ui/button"
 import {
-  anexos as todosAnexos,
-  avaliacoes,
-  comentarios as todosComentarios,
-  ticketEventos,
-  ticketPorNumero,
-} from "@/lib/mock/data"
+  buscarAvaliacao,
+  buscarChamadoPorNumero,
+  listarAnexos,
+  listarComentarios,
+  listarEventos,
+} from "@/lib/tickets/queries"
+
+import { ComentariosSection } from "./comentarios-section"
 
 interface PageProps {
   params: Promise<{ numero: string }>
@@ -24,21 +24,22 @@ interface PageProps {
 
 // Detalhe do lado do solicitante — sem notas internas, sem apontamento de
 // horas, sem edição de status/prioridade. Ele só acompanha e responde.
+// RLS (helpdesk.ticket_select) já restringe ao ticket pertencer à empresa
+// do usuário logado — se não pertencer, buscarChamadoPorNumero retorna null.
 export default async function ChamadoDetalhePage({ params }: PageProps) {
   const { numero } = await params
   const numeroTicket = Number(numero)
-  const ticket = ticketPorNumero(numeroTicket)
+  const ticket = await buscarChamadoPorNumero(numeroTicket)
 
-  if (!ticket || ticket.empresaId !== "acme") {
-    notFound()
-  }
+  if (!ticket) notFound()
 
-  const comentariosPublicos = todosComentarios.filter(
-    (c) => c.ticketId === String(numeroTicket) && c.interno === false
-  )
-  const eventos = ticketEventos.filter((e) => e.ticketId === String(numeroTicket))
-  const anexosDoTicket = todosAnexos.filter((a) => a.ticketId === String(numeroTicket))
-  const avaliacao = avaliacoes.find((a) => a.ticketId === String(numeroTicket))
+  const [comentarios, eventos, anexosDoTicket, avaliacao] = await Promise.all([
+    listarComentarios(numeroTicket),
+    listarEventos(numeroTicket),
+    listarAnexos(numeroTicket),
+    buscarAvaliacao(numeroTicket),
+  ])
+  const comentariosPublicos = comentarios.filter((c) => !c.interno)
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-(--space-4)">
@@ -85,12 +86,12 @@ export default async function ChamadoDetalhePage({ params }: PageProps) {
         <AnexoList anexos={anexosDoTicket} />
       </div>
 
-      <div className="flex flex-col gap-(--space-2)">
-        <h2 className="text-sm font-medium text-foreground">Andamento</h2>
-        <TicketTimeline comentarios={comentariosPublicos} eventos={eventos} />
-      </div>
-
-      <ComentarioComposer mostrarNotaInterna={false} />
+      <ComentariosSection
+        ticketNumero={ticket.numero}
+        comentarios={comentariosPublicos}
+        eventos={eventos}
+        anexos={anexosDoTicket}
+      />
     </div>
   )
 }

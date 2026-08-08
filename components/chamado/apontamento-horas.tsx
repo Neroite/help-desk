@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Play, Square } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { usuarioPorId } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import type { ApontamentoHoras as ApontamentoHorasItem } from "@/lib/types"
 
 interface ApontamentoHorasProps {
@@ -21,6 +21,7 @@ function formatarMinutos(min: number): string {
 // a UI da fase de telas. Gravação real de apontamento entra na fase 4.
 export function ApontamentoHoras({ apontamentos }: ApontamentoHorasProps) {
   const [rodando, setRodando] = useState(false)
+  const { usuarioPorId } = useReferenceData()
 
   const totalMinutos = apontamentos.reduce((soma, a) => soma + a.minutos, 0)
   const faturavelMinutos = apontamentos

@@ -24,9 +24,9 @@ export default function NovoChamadoPage() {
     }
   }
 
-  function handleCriado() {
+  function handleCriado(numero: number) {
     toast.success("Chamado criado com sucesso.")
-    router.push("/chamados")
+    router.push(`/chamados/${numero}`)
   }
 
   return (

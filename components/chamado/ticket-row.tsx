@@ -11,7 +11,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { categoriasProblema, empresaPorId, usuarioPorId } from "@/lib/mock/data"
+import { useReferenceData } from "@/lib/reference-data/provider"
 import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_TINT_BG, STATUS_TINT_BORDER } from "@/lib/status"
 import type { Ticket } from "@/lib/types"
@@ -70,9 +70,9 @@ export function TicketRow({
   onToggleTimer,
 }: TicketRowProps) {
   const agora = useSlaClock()
+  const { empresaPorId, usuarioPorId, categoriasProblema } = useReferenceData()
   const empresa = empresaPorId(ticket.empresaId)
   const solicitante = usuarioPorId(ticket.solicitanteId)
-  const contato = usuarioPorId(ticket.contatoId)
   const analista = usuarioPorId(ticket.analistaId)
   const categoria = categoriasProblema.find((c) => c.id === ticket.catProblemaId)
   const categoriaPai = categoria?.paiId ? categoriasProblema.find((c) => c.id === categoria.paiId) : null
@@ -105,16 +105,11 @@ export function TicketRow({
       </TableCell>
 
       <TableCell>
-        <div className="flex flex-col">
-          <span className="font-medium text-foreground">{solicitante?.nome ?? "—"}</span>
-          {contato && contato.id !== solicitante?.id && (
-            <span className="text-xs text-muted-foreground">{contato.nome}</span>
-          )}
-        </div>
+        <span className="font-medium text-foreground">{solicitante?.nome ?? "—"}</span>
       </TableCell>
 
       <TableCell className="max-w-80 whitespace-normal">
-        <p className="line-clamp-2 text-foreground">{ticket.assunto}</p>
+        <p className="line-clamp-2 text-foreground">{ticket.titulo}</p>
       </TableCell>
 
       <TableCell className="text-muted-foreground">{empresa?.nome ?? "—"}</TableCell>
@@ -145,10 +140,7 @@ export function TicketRow({
       </TableCell>
 
       <TableCell>
-        <div className="flex flex-col">
-          <span className="font-medium text-foreground">{analista?.nome ?? "—"}</span>
-          <span className="text-xs text-muted-foreground">{ticket.mesa}</span>
-        </div>
+        <span className="font-medium text-foreground">{analista?.nome ?? "—"}</span>
       </TableCell>
 
       <TableCell className="min-w-48">

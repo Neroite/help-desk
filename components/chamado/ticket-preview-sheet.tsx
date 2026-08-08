@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { PrioridadeBadge } from "@/components/chamado/prioridade-badge"
@@ -14,8 +15,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { comentarios, empresaPorId, usuarioPorId } from "@/lib/mock/data"
-import type { Ticket } from "@/lib/types"
+import { useReferenceData } from "@/lib/reference-data/provider"
+import { createClient } from "@/lib/supabase/client"
+import type { Comentario, Ticket } from "@/lib/types"
 
 interface TicketPreviewSheetProps {
   ticket: Ticket | null
@@ -27,12 +29,49 @@ interface TicketPreviewSheetProps {
 // resumo rápido sem sair da listagem. `ticket` fica null só antes da
 // primeira pré-visualização; o pai mantém o último ticket visto durante a
 // animação de fechamento, então o guard abaixo cobre apenas esse caso.
+//
+// Comentários vêm do client Supabase do navegador (não do server client) —
+// a fila já buscou os tickets no servidor, mas abrir a pré-visualização é
+// uma interação de cliente que não passa por uma nova navegação/render de
+// Server Component, então busca sob demanda aqui mesmo.
 export function TicketPreviewSheet({ ticket, open, onOpenChange }: TicketPreviewSheetProps) {
+  const { empresaPorId, usuarioPorId } = useReferenceData()
+  const [ultimosComentarios, setUltimosComentarios] = useState<Comentario[]>([])
+
+  useEffect(() => {
+    if (!open || !ticket) return
+    let cancelado = false
+    const supabase = createClient()
+
+    supabase
+      .from("comentario")
+      .select("id, ticket_id, autor_id, corpo, interno, criado_em")
+      .eq("ticket_id", ticket.numero)
+      .order("criado_em", { ascending: false })
+      .limit(3)
+      .then(({ data }) => {
+        if (cancelado || !data) return
+        setUltimosComentarios(
+          data
+            .map((r) => ({
+              id: r.id,
+              ticketId: r.ticket_id,
+              autorId: r.autor_id,
+              corpo: r.corpo,
+              interno: r.interno,
+              criadoEm: r.criado_em,
+            }))
+            .reverse()
+        )
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [open, ticket])
+
   const empresa = ticket ? empresaPorId(ticket.empresaId) : undefined
   const solicitante = ticket ? usuarioPorId(ticket.solicitanteId) : undefined
-  const ultimosComentarios = ticket
-    ? comentarios.filter((c) => c.ticketId === String(ticket.numero)).slice(-3)
-    : []
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

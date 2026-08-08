@@ -3,15 +3,12 @@ import { Plus, Inbox } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { TicketCard } from "@/components/chamado/ticket-card"
-import { tickets } from "@/lib/mock/data"
+import { listarChamados } from "@/lib/tickets/queries"
 
-// Usuário mock logado — não existe auth real ainda.
-const SOLICITANTE_ID = "u-maria"
-
-export default function PortalPage() {
-  const meusChamados = tickets
-    .filter((t) => t.solicitanteId === SOLICITANTE_ID)
-    .sort((a, b) => b.numero - a.numero)
+// RLS já escopa por empresa (ver helpdesk.ticket_select) — o solicitante
+// só recebe os chamados da própria empresa, não precisa filtrar aqui.
+export default async function PortalPage() {
+  const meusChamados = await listarChamados()
 
   return (
     <div className="flex flex-col gap-(--space-4)">
