@@ -105,17 +105,34 @@ function KanbanColumn({
       className={cn(
         // Uma coluna por vez no mobile (scroll-snap horizontal, ver
         // trilho em KanbanBoard); a partir de sm volta pra largura fixa e
-        // várias colunas visíveis ao mesmo tempo.
-        "flex w-[85vw] shrink-0 snap-start flex-col gap-2 rounded-md border border-border bg-muted/30 p-(--space-2) sm:w-72",
-        isOver && "border-primary/50 bg-primary/5"
+        // várias colunas visíveis ao mesmo tempo. `overflow-hidden` recorta
+        // o cabeçalho colorido nos cantos arredondados do container, sem
+        // precisar de rounded-t/rounded-b separados nele.
+        "flex w-[85vw] shrink-0 snap-start flex-col overflow-hidden rounded-lg border sm:w-72",
+        isOver ? "border-primary/50" : "border-border"
       )}
     >
-      <div className="flex items-center gap-1.5 px-1 py-1 text-xs font-medium text-foreground">
-        <Icon className="size-3.5" style={{ color: `var(--${meta.colorVar})` }} aria-hidden="true" />
-        {coluna.rotulo}
-        <span className="ml-auto font-tabular text-muted-foreground">{tickets.length}</span>
+      {/* Barra forte estilo Milvus: cor cheia (colorVarSolid — fixa entre
+          os temas, mesma variante usada nos badges), pouco espaçamento,
+          contador num "chip" translúcido escuro por cima. */}
+      <div
+        className="flex shrink-0 items-center gap-1.5 px-3 py-2 text-white"
+        style={{ backgroundColor: `var(--${meta.colorVarSolid})` }}
+      >
+        <Icon className="size-4" aria-hidden="true" />
+        <span className="text-xs font-semibold">{coluna.rotulo}</span>
+        <span className="ml-auto rounded-full bg-black/15 px-2 py-0.5 font-tabular text-xs font-semibold">
+          {tickets.length}
+        </span>
       </div>
-      <div className="flex flex-col gap-2">
+      {/* Corpo neutro — sombra só existe no TicketCard (só existe quando há
+          chamado); coluna vazia e o corpo em si nunca têm sombra própria. */}
+      <div
+        className={cn(
+          "flex flex-1 flex-col gap-2 bg-muted/20 p-(--space-2)",
+          isOver && "bg-primary/5"
+        )}
+      >
         {tickets.map((ticket) => (
           <KanbanCardArrastavel
             key={ticket.numero}

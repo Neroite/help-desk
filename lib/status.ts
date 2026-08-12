@@ -1,9 +1,13 @@
 import {
   AlertOctagon,
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   Circle,
   Clock,
+  Flame,
+  Minus,
   Pause,
   PauseCircle,
   Play,
@@ -21,6 +25,12 @@ interface StatusMeta {
   // vibrante de colorVar sozinho não bate 4.5:1; no dark os dois
   // coincidem. Ver app/globals.css.
   colorVarFg: string
+  // Fundo sólido com texto BRANCO por cima (badge preenchido, cabeçalho
+  // de coluna do Kanban) — não usa colorVarFg: esse é escolhido pra ler
+  // bem como TEXTO sobre a superfície do app (no dark, fica claro), o que
+  // o torna ilegível como fundo com texto branco. colorVarSolid é fixo
+  // entre os temas de propósito. Ver app/globals.css.
+  colorVarSolid: string
 }
 
 export const STATUS_META: Record<StatusKey, StatusMeta> = {
@@ -29,84 +39,82 @@ export const STATUS_META: Record<StatusKey, StatusMeta> = {
     icon: Clock,
     colorVar: "status-aguardando",
     colorVarFg: "status-aguardando-fg",
+    colorVarSolid: "status-aguardando-solid",
   },
   a_fazer: {
     rotuloPadrao: "A fazer",
     icon: Circle,
     colorVar: "status-a-fazer",
     colorVarFg: "status-a-fazer-fg",
+    colorVarSolid: "status-a-fazer-solid",
   },
   em_andamento: {
     rotuloPadrao: "Em andamento",
     icon: Play,
     colorVar: "status-andamento",
     colorVarFg: "status-andamento-fg",
+    colorVarSolid: "status-andamento-solid",
   },
   pausado: {
     rotuloPadrao: "Pausado",
     icon: Pause,
     colorVar: "status-pausado",
     colorVarFg: "status-pausado-fg",
+    colorVarSolid: "status-pausado-solid",
   },
   finalizado: {
     rotuloPadrao: "Finalizado",
     icon: CheckCircle2,
     colorVar: "status-finalizado",
     colorVarFg: "status-finalizado-fg",
+    colorVarSolid: "status-finalizado-solid",
   },
   cancelado: {
     rotuloPadrao: "Cancelado",
     icon: XCircle,
     colorVar: "status-cancelado",
     colorVarFg: "status-cancelado-fg",
+    colorVarSolid: "status-cancelado-solid",
   },
 }
-
-// Barra lateral + fundo tintado por status — dá ao card/linha uma cor
-// perceptível sem depender só dos badges pequenos. Classes literais (não
-// geradas por template) porque o Tailwind precisa achá-las no source para
-// gerar o CSS; um `bg-${colorVar}/8` dinâmico não seria detectado.
-// Separados (borda / fundo) porque a linha de tabela aplica cada parte num
-// elemento diferente (a borda esquerda só renderiza de forma confiável na
-// <td>, não na <tr>, no modelo de bordas do HTML table); o card usa os dois
-// juntos no mesmo elemento.
-export const STATUS_TINT_BORDER: Record<StatusKey, string> = {
-  aguardando_aprovacao: "border-l-status-aguardando",
-  a_fazer: "border-l-status-a-fazer",
-  em_andamento: "border-l-status-andamento",
-  pausado: "border-l-status-pausado",
-  finalizado: "border-l-status-finalizado",
-  cancelado: "border-l-status-cancelado",
-}
-
-export const STATUS_TINT_BG: Record<StatusKey, string> = {
-  aguardando_aprovacao: "bg-status-aguardando/8",
-  // /6 em vez de /8: a_fazer costuma ser o status mais populoso da fila,
-  // e 8% do vermelho vibrante deixa a tabela inteira rosada.
-  a_fazer: "bg-status-a-fazer/6",
-  em_andamento: "bg-status-andamento/8",
-  pausado: "bg-status-pausado/8",
-  finalizado: "bg-status-finalizado/8",
-  cancelado: "bg-status-cancelado/8",
-}
-
-export const STATUS_CARD_TINT: Record<StatusKey, string> = Object.fromEntries(
-  Object.entries(STATUS_TINT_BORDER).map(([key, borderClass]) => [
-    key,
-    `${borderClass} ${STATUS_TINT_BG[key as StatusKey]}`,
-  ])
-) as Record<StatusKey, string>
 
 interface PrioridadeMeta {
   rotulo: string
   peso: number
+  icon: LucideIcon
+  // Mesma ideia de STATUS_META.colorVarSolid — fundo cheio, texto branco,
+  // fixo entre os temas. Reaproveita os tokens "-solid" de status já
+  // existentes em vez de criar cores novas (o registro visual — laranja =
+  // atenção, vermelho = urgente — já é familiar de quem olha o Kanban);
+  // "média" não tem status equivalente, ganha um token próprio.
+  colorVarSolid: string
 }
 
 export const PRIORIDADE_META: Record<Prioridade, PrioridadeMeta> = {
-  baixa: { rotulo: "Baixa", peso: 1 },
-  media: { rotulo: "Média", peso: 2 },
-  alta: { rotulo: "Alta", peso: 3 },
-  critica: { rotulo: "Crítica", peso: 4 },
+  baixa: {
+    rotulo: "Baixa",
+    peso: 1,
+    icon: ArrowDown,
+    colorVarSolid: "status-cancelado-solid",
+  },
+  media: {
+    rotulo: "Média",
+    peso: 2,
+    icon: Minus,
+    colorVarSolid: "prioridade-media-solid",
+  },
+  alta: {
+    rotulo: "Alta",
+    peso: 3,
+    icon: ArrowUp,
+    colorVarSolid: "status-aguardando-solid",
+  },
+  critica: {
+    rotulo: "Crítica",
+    peso: 4,
+    icon: Flame,
+    colorVarSolid: "status-a-fazer-solid",
+  },
 }
 
 interface SlaSeveridadeMeta {

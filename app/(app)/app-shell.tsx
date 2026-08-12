@@ -24,6 +24,7 @@ import {
   Ticket,
   Timer,
   Users,
+  type LucideIcon,
 } from "lucide-react"
 
 import { NovoChamadoProvider, useNovoChamado } from "@/components/chamado/novo-chamado-dialog"
@@ -54,13 +55,24 @@ import {
 } from "@/components/ui/sidebar"
 import { useReferenceData } from "@/lib/reference-data/provider"
 
-const navItems = [
-  { title: "Chamados", url: "/chamados", icon: Ticket },
+interface NavItem {
+  title: string
+  url: string
+  // Opcional, só existe quando difere de `url` — "Chamados" é a tela
+  // principal, então o link já entra direto no Kanban. `url` continua sendo
+  // a chave usada por getActiveUrl()/isActive (comparação por pathname, sem
+  // query string), então o item continua marcado ativo em qualquer `?view=`.
+  href?: string
+  icon: LucideIcon
+}
+
+const navItems: NavItem[] = [
+  { title: "Chamados", url: "/chamados", href: "/chamados?view=kanban", icon: Ticket },
   { title: "Meus chamados", url: "/chamados/meus", icon: ListChecks },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 ]
 
-const settingsItems = [
+const settingsItems: NavItem[] = [
   { title: "Empresas", url: "/configuracoes/empresas", icon: Building2 },
   { title: "Usuários", url: "/configuracoes/usuarios", icon: Users },
   { title: "Categorias", url: "/configuracoes/categorias", icon: Tags },
@@ -177,7 +189,7 @@ function AppSidebar({ activeUrl, ehAdmin }: { activeUrl: string | null; ehAdmin:
   return (
     <Sidebar collapsible="icon" {...hoverHandlers}>
       <SidebarHeader className="px-3 py-3">
-        <div className="flex items-center gap-2 overflow-hidden">
+        <Link href="/chamados?view=kanban" className="flex items-center gap-2 overflow-hidden">
           <div
             aria-hidden="true"
             className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-active)] text-sm font-bold text-white"
@@ -187,7 +199,7 @@ function AppSidebar({ activeUrl, ehAdmin }: { activeUrl: string | null; ehAdmin:
           <span className="truncate text-base font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
             Help-Desk
           </span>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -198,7 +210,7 @@ function AppSidebar({ activeUrl, ehAdmin }: { activeUrl: string | null; ehAdmin:
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton
-                      render={<Link href={item.url} />}
+                      render={<Link href={item.href ?? item.url} />}
                       isActive={isActive}
                       tooltip={item.title}
                       className="border-l-2 border-l-transparent"

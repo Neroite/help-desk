@@ -13,7 +13,6 @@ import { TableCell, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useSlaClock } from "@/lib/sla-clock"
-import { STATUS_TINT_BG, STATUS_TINT_BORDER } from "@/lib/status"
 import type { Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -79,14 +78,10 @@ export function TicketRow({
 
   return (
     <TableRow
-      className={cn(
-        "group relative h-(--row-h)",
-        STATUS_TINT_BG[ticket.statusKey],
-        selected && "bg-muted/40"
-      )}
+      className={cn("group relative h-(--row-h)", selected && "bg-muted/40")}
       data-state={selected ? "selected" : undefined}
     >
-      <TableCell className={cn("relative z-10 border-l-[3px]", STATUS_TINT_BORDER[ticket.statusKey])}>
+      <TableCell className="relative z-10">
         <Checkbox
           checked={selected}
           onCheckedChange={() => onToggleSelect(ticket.numero)}

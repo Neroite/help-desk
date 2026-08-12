@@ -27,10 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body
-        className={`${firaSans.variable} ${firaCode.variable} antialiased`}
-      >
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      className={`${firaSans.variable} ${firaCode.variable}`}
+    >
+      <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <SlaClockProvider>{children}</SlaClockProvider>
           <Toaster />

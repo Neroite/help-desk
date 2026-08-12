@@ -5,7 +5,6 @@ import Link from "next/link"
 import { PrioridadeBadge } from "@/components/chamado/prioridade-badge"
 import { SlaBadge } from "@/components/chamado/sla-badge"
 import { useReferenceData } from "@/lib/reference-data/provider"
-import { STATUS_CARD_TINT } from "@/lib/status"
 import type { Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -29,8 +28,7 @@ export function TicketCard({ ticket, arrastavel = false, href, className }: Tick
     <Link
       href={href ?? `/chamados/${ticket.numero}`}
       className={cn(
-        "flex flex-col gap-2 rounded-md border-y border-r border-border border-l-[3px] p-(--card-pad) text-sm shadow-sm transition-colors hover:border-primary/40",
-        STATUS_CARD_TINT[ticket.statusKey],
+        "flex flex-col gap-2 rounded-md border border-border p-(--card-pad) text-sm shadow-sm transition-colors hover:border-primary/40",
         arrastavel && "cursor-grab active:cursor-grabbing",
         className
       )}

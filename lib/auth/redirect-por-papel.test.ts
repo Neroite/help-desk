@@ -2,12 +2,12 @@ import { describe, expect, test } from "vitest"
 import { redirectPorPapel } from "./redirect-por-papel"
 
 describe("redirectPorPapel", () => {
-  test("admin cai na fila de chamados do shell interno", () => {
-    expect(redirectPorPapel("admin")).toBe("/chamados")
+  test("admin cai no Kanban da fila de chamados", () => {
+    expect(redirectPorPapel("admin")).toBe("/chamados?view=kanban")
   })
 
-  test("analista cai na fila de chamados do shell interno", () => {
-    expect(redirectPorPapel("analista")).toBe("/chamados")
+  test("analista cai no Kanban da fila de chamados", () => {
+    expect(redirectPorPapel("analista")).toBe("/chamados?view=kanban")
   })
 
   test("solicitante cai no portal", () => {

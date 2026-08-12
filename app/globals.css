@@ -71,6 +71,17 @@
   --color-status-finalizado-fg: var(--status-finalizado-fg);
   --color-status-cancelado-fg: var(--status-cancelado-fg);
 
+  /* "-solid": fundo cheio com texto branco por cima (StatusBadge,
+     PrioridadeBadge, cabeçalho de coluna do Kanban) — ver comentário em
+     :root sobre por que não pode ser o mesmo par "-fg" de cima. */
+  --color-status-aguardando-solid: var(--status-aguardando-solid);
+  --color-status-a-fazer-solid: var(--status-a-fazer-solid);
+  --color-status-andamento-solid: var(--status-andamento-solid);
+  --color-status-pausado-solid: var(--status-pausado-solid);
+  --color-status-finalizado-solid: var(--status-finalizado-solid);
+  --color-status-cancelado-solid: var(--status-cancelado-solid);
+  --color-prioridade-media-solid: var(--prioridade-media-solid);
+
   --color-kpi-meus: var(--kpi-meus);
 
   --color-sla-ok: var(--sla-ok);
@@ -144,6 +155,23 @@
   --status-finalizado-fg: #111827;
   --status-cancelado: #64748b; /* 4.77:1 */
   --status-cancelado-fg: #64748b;
+
+  /* "-solid": fundo cheio de badge/cabeçalho com texto BRANCO por cima —
+     diferente do par "-fg" acima (pensado como cor de TEXTO sobre a
+     superfície do app, que no dark vira claro e portanto ilegível como
+     fundo com texto branco). Fixo — não redefinido em .dark de propósito,
+     senão "Finalizado" viraria quase branco com texto branco em cima no
+     tema escuro. Reaproveita os mesmos hex do par "-fg" do light (já
+     documentados >= 4.5:1 contra branco, e contraste é simétrico). */
+  --status-aguardando-solid: #c2410c;
+  --status-a-fazer-solid: #dc2626;
+  --status-andamento-solid: #15803d;
+  --status-pausado-solid: #7c3aed;
+  --status-finalizado-solid: #111827;
+  --status-cancelado-solid: #64748b;
+  /* Prioridade "média" não tem par de status equivalente — âmbar-700,
+     ~5.02:1 contra branco. */
+  --prioridade-media-solid: #b45309;
 
   /* Tile "Meus" do dashboard — azul, distinto do navy de "Abertos" (--primary) */
   --kpi-meus: #2563eb; /* 5.22:1 */

@@ -28,14 +28,17 @@ export function PrioridadeBadge({ prioridade, className }: PrioridadeBadgeProps)
   }
 
   const meta = PRIORIDADE_META[prioridade]
+  const Icon = meta.icon
 
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center rounded-md border border-border px-2 text-xs font-medium text-foreground",
+        "inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-white",
         className
       )}
+      style={{ backgroundColor: `var(--${meta.colorVarSolid})` }}
     >
+      <Icon className="size-3.5" aria-hidden="true" />
       {meta.rotulo}
     </span>
   )
