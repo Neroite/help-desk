@@ -11,6 +11,7 @@ import {
 
 import { KpiTile } from "@/components/dashboard/kpi-tile"
 import { useReferenceData } from "@/lib/reference-data/provider"
+import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import { calcularSeveridade } from "@/lib/sla-display"
 import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_META } from "@/lib/status"
@@ -23,6 +24,10 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
   // mismatch de hidratação — ver lib/sla-clock.tsx.
   const agora = useSlaClock()
   const { usuarioAtual } = useReferenceData()
+
+  // KPIs derivam direto de `tickets` (prop) a cada render — sem estado
+  // local pra resincronizar, só precisamos que o router.refresh() aconteça.
+  useRealtimeRefresh([{ tabela: "ticket" }])
 
   const contagemPorStatus = STATUS_KEYS.map((statusKey) => ({
     statusKey,

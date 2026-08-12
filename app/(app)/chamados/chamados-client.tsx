@@ -15,7 +15,10 @@ import { TicketPreviewSheet } from "@/components/chamado/ticket-preview-sheet"
 import { TicketTable, type TicketSortField } from "@/components/chamado/ticket-table"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useEstadoSincronizado } from "@/lib/hooks/use-estado-sincronizado"
+import { colunasDoKanban } from "@/lib/kanban/colunas"
 import { useReferenceData } from "@/lib/reference-data/provider"
+import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import { calcularSeveridade } from "@/lib/sla-display"
 import { useSlaClock } from "@/lib/sla-clock"
 import { atribuirAnalista, definirPrioridade, mudarStatus } from "@/lib/tickets/actions"
@@ -140,11 +143,16 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   const { abrir: abrirNovoChamado } = useNovoChamado()
   const { usuarioAtual, usuarioPorId, empresaPorId, categoriasProblema } = useReferenceData()
 
-  const [localTickets, setLocalTickets] = useState<Ticket[]>(ticketsIniciais)
+  const [localTickets, setLocalTickets] = useEstadoSincronizado(ticketsIniciais)
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [timersAtivos, setTimersAtivos] = useState<Set<number>>(new Set())
   const [previewTicket, setPreviewTicket] = useState<Ticket | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+
+  // Fila inteira já é escopada por RLS (analista vê tudo, solicitante só a
+  // própria empresa) — sem filtro, então cobre qualquer mudança de status
+  // feita por outra sessão (outro analista, ou o próprio solicitante).
+  useRealtimeRefresh([{ tabela: "ticket" }])
 
   const view = searchParams.get("view") === "kanban" ? "kanban" : "lista"
   const empresaFiltro = searchParams.get("empresa")
@@ -206,8 +214,8 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   const paginaTickets = ordenados.slice(inicioIndice, inicioIndice + PAGE_SIZE)
 
   const empresaSelecionada = empresaFiltro ? empresaPorId(empresaFiltro) : undefined
-  const statusVisiveis = empresaSelecionada ? empresaSelecionada.statusAtivos : STATUS_KEYS
   const statusRotulos = empresaSelecionada ? empresaSelecionada.statusRotulos : undefined
+  const colunasKanban = colunasDoKanban(empresaSelecionada)
 
   function updateParam(patch: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
@@ -239,11 +247,17 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   }
 
   function handleStatusChange(numero: number, novoStatus: StatusKey) {
+    const statusAnterior = localTickets.find((t) => t.numero === numero)?.statusKey
     aplicarLocal(numero, { statusKey: novoStatus })
     const rotulo = statusRotulos?.[novoStatus] ?? STATUS_META[novoStatus].rotuloPadrao
     mudarStatus(numero, novoStatus)
       .then(() => toast.success(`Chamado #${numero} movido para "${rotulo}".`))
-      .catch(() => toast.error(`Não foi possível mover o chamado #${numero}.`))
+      .catch(() => {
+        // Reverte o card pra coluna original — sem isso, uma gravação que
+        // falha deixa o kanban mentindo sobre o status até o próximo refresh.
+        if (statusAnterior) aplicarLocal(numero, { statusKey: statusAnterior })
+        toast.error(`Não foi possível mover o chamado #${numero}.`)
+      })
   }
 
   function handleQuickEditChange(
@@ -406,8 +420,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
       ) : view === "kanban" ? (
         <KanbanBoard
           tickets={filtrados}
-          statusVisiveis={statusVisiveis}
-          statusRotulos={statusRotulos}
+          colunas={colunasKanban}
           onStatusChange={handleStatusChange}
         />
       ) : (

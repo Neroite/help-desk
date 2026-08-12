@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { TicketCard } from "@/components/chamado/ticket-card"
 import { listarChamados } from "@/lib/tickets/queries"
 
+import { PortalRealtime } from "./portal-realtime"
+
 // RLS já escopa por empresa (ver helpdesk.ticket_select) — o solicitante
 // só recebe os chamados da própria empresa, não precisa filtrar aqui.
 export default async function PortalPage() {
@@ -12,6 +14,7 @@ export default async function PortalPage() {
 
   return (
     <div className="flex flex-col gap-(--space-4)">
+      <PortalRealtime />
       <div className="flex items-center justify-between gap-(--space-3)">
         <h1 className="text-2xl font-semibold text-foreground">Meus chamados</h1>
         <Button render={<Link href="/portal/novo" />} nativeButton={false} className="cursor-pointer">

@@ -1,10 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { MoreVertical } from "lucide-react"
 
 import {
   DndContext,
+  DragOverlay,
   type DragEndEvent,
+  type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
   useDroppable,
@@ -22,32 +25,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { type ColunaKanban, dropPermitido } from "@/lib/kanban/colunas"
 import { STATUS_META } from "@/lib/status"
 import type { StatusKey, Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface KanbanBoardProps {
   tickets: Ticket[]
-  statusVisiveis: StatusKey[]
-  statusRotulos?: Partial<Record<StatusKey, string>>
+  colunas: ColunaKanban[]
   onStatusChange?: (numero: number, novoStatus: StatusKey) => void
 }
 
 function KanbanCardArrastavel({
   ticket,
-  statusVisiveis,
-  statusRotulos,
+  colunas,
   onStatusChange,
 }: {
   ticket: Ticket
-  statusVisiveis: StatusKey[]
-  statusRotulos?: Partial<Record<StatusKey, string>>
+  colunas: ColunaKanban[]
   onStatusChange?: (numero: number, novoStatus: StatusKey) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ticket.numero,
   })
-  const outrosStatus = statusVisiveis.filter((statusKey) => statusKey !== ticket.statusKey)
+  const outrasColunas = colunas.filter((c) => c.statusKey !== ticket.statusKey)
 
   return (
     <div
@@ -55,10 +56,10 @@ function KanbanCardArrastavel({
       {...listeners}
       {...attributes}
       style={{ transform: CSS.Translate.toString(transform) }}
-      className={cn("group/kanban-card relative", isDragging && "opacity-50")}
+      className={cn("group/kanban-card relative", isDragging && "opacity-0")}
     >
       <TicketCard ticket={ticket} arrastavel />
-      {onStatusChange && outrosStatus.length > 0 && (
+      {onStatusChange && outrasColunas.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={`Mudar status do chamado #${ticket.numero}`}
@@ -68,12 +69,12 @@ function KanbanCardArrastavel({
             <MoreVertical className="size-3.5" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {outrosStatus.map((statusKey) => (
+            {outrasColunas.map((coluna) => (
               <DropdownMenuItem
-                key={statusKey}
-                onClick={() => onStatusChange(ticket.numero, statusKey)}
+                key={coluna.statusKey}
+                onClick={() => onStatusChange(ticket.numero, coluna.statusKey)}
               >
-                Mover para &ldquo;{statusRotulos?.[statusKey] ?? STATUS_META[statusKey].rotuloPadrao}&rdquo;
+                Mover para &ldquo;{coluna.rotulo}&rdquo;
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -84,35 +85,34 @@ function KanbanCardArrastavel({
 }
 
 function KanbanColumn({
-  statusKey,
-  rotulo,
+  coluna,
   tickets,
-  statusVisiveis,
-  statusRotulos,
+  colunas,
   onStatusChange,
 }: {
-  statusKey: StatusKey
-  rotulo: string
+  coluna: ColunaKanban
   tickets: Ticket[]
-  statusVisiveis: StatusKey[]
-  statusRotulos?: Partial<Record<StatusKey, string>>
+  colunas: ColunaKanban[]
   onStatusChange?: (numero: number, novoStatus: StatusKey) => void
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: statusKey })
-  const meta = STATUS_META[statusKey]
+  const { setNodeRef, isOver } = useDroppable({ id: coluna.statusKey })
+  const meta = STATUS_META[coluna.statusKey]
   const Icon = meta.icon
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col gap-2 rounded-md border border-border bg-muted/30 p-(--space-2)",
+        // Uma coluna por vez no mobile (scroll-snap horizontal, ver
+        // trilho em KanbanBoard); a partir de sm volta pra largura fixa e
+        // várias colunas visíveis ao mesmo tempo.
+        "flex w-[85vw] shrink-0 snap-start flex-col gap-2 rounded-md border border-border bg-muted/30 p-(--space-2) sm:w-72",
         isOver && "border-primary/50 bg-primary/5"
       )}
     >
       <div className="flex items-center gap-1.5 px-1 py-1 text-xs font-medium text-foreground">
         <Icon className="size-3.5" style={{ color: `var(--${meta.colorVar})` }} aria-hidden="true" />
-        {rotulo}
+        {coluna.rotulo}
         <span className="ml-auto font-tabular text-muted-foreground">{tickets.length}</span>
       </div>
       <div className="flex flex-col gap-2">
@@ -120,8 +120,7 @@ function KanbanColumn({
           <KanbanCardArrastavel
             key={ticket.numero}
             ticket={ticket}
-            statusVisiveis={statusVisiveis}
-            statusRotulos={statusRotulos}
+            colunas={colunas}
             onStatusChange={onStatusChange}
           />
         ))}
@@ -138,35 +137,54 @@ function KanbanColumn({
 // setas movem entre colunas, Espaço/Enter solta) e cada card também expõe um
 // menu "⋮" com a lista de status de destino, chamando o mesmo callback
 // `onStatusChange` — cobre teclado e touch sem depender do gesto de arrastar.
-// Sem filtro de empresa, mostra as 6 colunas globais; com filtro, só os
-// status ativos da empresa e os rótulos dela.
-export function KanbanBoard({ tickets, statusVisiveis, statusRotulos, onStatusChange }: KanbanBoardProps) {
+// `colunas` já vem pronta de `colunasDoKanban()` (lib/kanban/colunas.ts):
+// as 6 globais sem filtro de empresa, ou só os status ativos e os rótulos
+// dela com filtro.
+export function KanbanBoard({ tickets, colunas, onStatusChange }: KanbanBoardProps) {
+  const [ticketAtivo, setTicketAtivo] = useState<Ticket | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  function handleDragEnd(event: DragEndEvent) {
-    const novoStatus = event.over?.id as StatusKey | undefined
+  function handleDragStart(event: DragStartEvent) {
     const numero = event.active.id as number
-    if (novoStatus) onStatusChange?.(numero, novoStatus)
+    setTicketAtivo(tickets.find((t) => t.numero === numero) ?? null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setTicketAtivo(null)
+    const destino = event.over?.id as StatusKey | undefined
+    const numero = event.active.id as number
+    const ticket = tickets.find((t) => t.numero === numero)
+    if (!destino || !ticket) return
+    if (!dropPermitido(ticket, destino, colunas)) return
+    onStatusChange?.(numero, destino)
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {statusVisiveis.map((statusKey) => (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
+        {colunas.map((coluna) => (
           <KanbanColumn
-            key={statusKey}
-            statusKey={statusKey}
-            rotulo={statusRotulos?.[statusKey] ?? STATUS_META[statusKey].rotuloPadrao}
-            tickets={tickets.filter((t) => t.statusKey === statusKey)}
-            statusVisiveis={statusVisiveis}
-            statusRotulos={statusRotulos}
+            key={coluna.statusKey}
+            coluna={coluna}
+            tickets={tickets.filter((t) => t.statusKey === coluna.statusKey)}
+            colunas={colunas}
             onStatusChange={onStatusChange}
           />
         ))}
       </div>
+      {/* Overlay solto no body (fora do fluxo das colunas): sem ele o card
+          arrastado só translada dentro da própria coluna e passa por baixo
+          das vizinhas em vez de flutuar por cima de tudo. */}
+      <DragOverlay>
+        {ticketAtivo && (
+          <div className="w-[85vw] sm:w-72">
+            <TicketCard ticket={ticketAtivo} arrastavel />
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   )
 }

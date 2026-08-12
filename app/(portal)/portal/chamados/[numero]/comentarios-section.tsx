@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
 import { toast } from "sonner"
 
 import { ComentarioComposer } from "@/components/chamado/comentario-composer"
 import { TicketTimeline } from "@/components/chamado/ticket-timeline"
+import { useEstadoSincronizado } from "@/lib/hooks/use-estado-sincronizado"
 import { useReferenceData } from "@/lib/reference-data/provider"
+import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import { adicionarComentario } from "@/lib/tickets/actions"
 import type { Anexo, Comentario, TicketEvento } from "@/lib/types"
 
@@ -19,7 +20,13 @@ interface ComentariosSectionProps {
 // Portal do solicitante nunca envia nota interna — interno sempre false.
 export function ComentariosSection({ ticketNumero, comentarios, eventos, anexos }: ComentariosSectionProps) {
   const { usuarioAtual } = useReferenceData()
-  const [comentariosState, setComentariosState] = useState<Comentario[]>(comentarios)
+  const [comentariosState, setComentariosState] = useEstadoSincronizado(comentarios)
+
+  // Sem filtro por linha (ver comentário em use-realtime-refresh.ts). A RLS
+  // de `comentario_select` já exclui nota interna pra quem não é staff —
+  // mesmo sem filtro, o refresh nunca busca dado que o solicitante não
+  // pode ver.
+  useRealtimeRefresh([{ tabela: "ticket" }, { tabela: "comentario" }, { tabela: "ticket_evento" }])
 
   function handleEnviar(corpo: string) {
     const novoComentario: Comentario = {

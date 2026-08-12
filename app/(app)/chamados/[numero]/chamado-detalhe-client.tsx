@@ -34,7 +34,9 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useEstadoSincronizado } from "@/lib/hooks/use-estado-sincronizado"
 import { useReferenceData } from "@/lib/reference-data/provider"
+import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import { adicionarComentario, definirPrioridade, mudarStatus } from "@/lib/tickets/actions"
 import { PRIORIDADE_META, STATUS_META } from "@/lib/status"
 import {
@@ -182,10 +184,16 @@ export function ChamadoDetalheClient({
       : catProblema.nome
     : "-"
 
-  const [statusKey, setStatusKey] = useState<StatusKey>(ticket.statusKey)
-  const [prioridade, setPrioridade] = useState<Prioridade | null>(ticket.prioridade)
-  const [comentariosState, setComentariosState] = useState<Comentario[]>(comentarios)
+  const [statusKey, setStatusKey] = useEstadoSincronizado(ticket.statusKey)
+  const [prioridade, setPrioridade] = useEstadoSincronizado(ticket.prioridade)
+  const [comentariosState, setComentariosState] = useEstadoSincronizado(comentarios)
   const [timelineFiltro, setTimelineFiltro] = useState<FiltroTimeline>("todos")
+
+  // Sem filtro por linha (ver comentário em use-realtime-refresh.ts): avisa
+  // em qualquer mudança de ticket/comentário/evento, não só a deste
+  // chamado. A RLS de `comentario_select` já barra nota interna pra quem
+  // não é staff antes do refresh buscar dado novo.
+  useRealtimeRefresh([{ tabela: "ticket" }, { tabela: "comentario" }, { tabela: "ticket_evento" }])
 
   // Aba mobile (< 768px) sincronizada via ?tab= -- volta pra "timeline" se
   // o param não existir ou for inválido. Mesmo padrão de URL-como-estado
