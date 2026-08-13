@@ -28,7 +28,7 @@ export default async function LoginPage({
   const { erro } = await searchParams
 
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
+    <div className="mx-auto grid min-h-svh max-w-6xl lg:grid-cols-2">
       <div className="flex flex-col items-center justify-center gap-8 bg-background px-4 py-16">
         <div className="flex items-center gap-2.5 text-foreground">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">

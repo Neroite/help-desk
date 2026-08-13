@@ -89,13 +89,14 @@ interface AcaoToolbarProps {
   icon: LucideIcon
   rotulo: string
   onClick: () => void
-  tone?: "verde" | "vermelho" | "azul"
+  tone?: "verde" | "vermelho" | "azul" | "preto"
 }
 
 const TONE_CLASSES: Record<NonNullable<AcaoToolbarProps["tone"]>, string> = {
   azul: "border-transparent bg-blue-600 text-white hover:border-transparent hover:bg-blue-700 hover:text-white",
   verde: "border-transparent bg-green-600 text-white hover:border-transparent hover:bg-green-700 hover:text-white",
   vermelho: "border-transparent bg-red-600 text-white hover:border-transparent hover:bg-red-700 hover:text-white",
+  preto: "border-transparent bg-neutral-900 text-white hover:border-transparent hover:bg-neutral-800 hover:text-white",
 }
 
 function AcaoToolbar({ icon: Icon, rotulo, onClick, tone }: AcaoToolbarProps) {
@@ -357,8 +358,20 @@ export function ChamadoDetalheClient({
       <h2 id="secao-sla" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         SLA
       </h2>
-      <SlaProgress rotulo="Resposta" venceEm={ticket.slaRespostaVenceEm} criadoEm={ticket.criadoEm} statusKey={statusKey} />
-      <SlaProgress rotulo="Solução" venceEm={ticket.slaSolucaoVenceEm} criadoEm={ticket.criadoEm} statusKey={statusKey} />
+      <SlaProgress
+        rotulo="Resposta"
+        venceEm={ticket.slaRespostaVenceEm}
+        criadoEm={ticket.criadoEm}
+        statusKey={statusKey}
+        mostrarRotulo
+      />
+      <SlaProgress
+        rotulo="Solução"
+        venceEm={ticket.slaSolucaoVenceEm}
+        criadoEm={ticket.criadoEm}
+        statusKey={statusKey}
+        mostrarRotulo
+      />
     </section>
   )
 
@@ -436,10 +449,10 @@ export function ChamadoDetalheClient({
             <div className="flex items-center gap-1.5">
               <AcaoToolbar icon={Link2} rotulo="Vincular chamado" onClick={() => toast.success("Vínculo registrado (mock)")} />
               <AcaoToolbar icon={Paperclip} rotulo="Anexar arquivo" onClick={() => toast.success("Anexo registrado (mock)")} />
-              <AcaoToolbar icon={Play} rotulo="Iniciar timer" tone="azul" onClick={() => toast.success("Cronômetro iniciado (mock)")} />
+              <AcaoToolbar icon={Play} rotulo="Iniciar timer" tone="verde" onClick={() => toast.success("Cronômetro iniciado (mock)")} />
               <AcaoToolbar icon={Printer} rotulo="Imprimir" onClick={() => window.print()} />
               <AcaoToolbar icon={Calendar} rotulo="Agendar" onClick={() => toast.success("Agendamento registrado (mock)")} />
-              <AcaoToolbar icon={Check} rotulo="Finalizar chamado" tone="verde" onClick={() => handleStatusChange("finalizado")} />
+              <AcaoToolbar icon={Check} rotulo="Finalizar chamado" tone="preto" onClick={() => handleStatusChange("finalizado")} />
               <AcaoToolbar icon={X} rotulo="Cancelar chamado" tone="vermelho" onClick={() => handleStatusChange("cancelado")} />
             </div>
           </div>

@@ -18,14 +18,11 @@ export function StatusBadge({ statusKey, rotulo, className }: StatusBadgeProps) 
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-white",
+        "inline-flex h-6 items-center gap-1.5 rounded-md border border-border px-2 text-xs font-medium text-foreground",
         className
       )}
-      // Com a linha/card sem tingimento (ver ticket-row/ticket-card), o
-      // badge é a única fonte de cor de status — precisa carregar sozinho.
-      style={{ backgroundColor: `var(--${meta.colorVarSolid})` }}
     >
-      <Icon className="size-3.5" aria-hidden="true" />
+      <Icon className="size-3.5" style={{ color: `var(--${meta.colorVar})` }} aria-hidden="true" />
       {rotulo ?? meta.rotuloPadrao}
     </span>
   )

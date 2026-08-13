@@ -90,22 +90,23 @@
   --color-sla-estourado: var(--sla-estourado);
   --color-sla-pausado: var(--sla-pausado);
 
-  /* Text scale — densidade de informação alta, tipografia confortável
-     (o Milvus empilha 2 linhas por célula em vez de encolher a fonte).
-     Base subiu de 15px para 18px (2 passos) por legibilidade — ver
-     openspec/changes/frontend-visual-polish. */
-  --text-xs: 13px;
-  --text-xs--line-height: 18px;
-  --text-sm: 15px;
-  --text-sm--line-height: 21px;
-  --text-base: 18px;
-  --text-base--line-height: 26px;
-  --text-lg: 20px;
-  --text-lg--line-height: 28px;
-  --text-xl: 23px;
-  --text-xl--line-height: 31px;
-  --text-2xl: 27px;
-  --text-2xl--line-height: 35px;
+  /* Text scale — Data-Dense Dashboard (docs/superpowers/specs/
+     2026-08-04-help-desk-design.md: "corpo da interface a 14px, tabela a
+     13px, nunca abaixo de 12px"). Um commit anterior tinha subido a base
+     pra 18px "por legibilidade", mas isso engordou linha de tabela e
+     densidade além do que o spec original pedia — revertido de volta. */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 22px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 30px;
 }
 
 :root {
@@ -192,7 +193,7 @@
   --space-8: 32px;
   --sidebar-w: 240px;
   --topbar-h: 56px;
-  --row-h: 68px;
+  --row-h: 36px;
   --card-pad: 12px;
   --grid-gap: 8px;
   --radius: 6px;

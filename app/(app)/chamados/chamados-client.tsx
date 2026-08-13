@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useState } from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LayoutGrid, List, Plus } from "lucide-react"
@@ -8,7 +9,6 @@ import { toast } from "sonner"
 
 import { BulkActionBar } from "@/components/chamado/bulk-action-bar"
 import { FiltroBar, FiltroChips } from "@/components/chamado/filtro-bar"
-import { KanbanBoard } from "@/components/chamado/kanban-board"
 import { useNovoChamado } from "@/components/chamado/novo-chamado-dialog"
 import { TicketCard } from "@/components/chamado/ticket-card"
 import { TicketPreviewSheet } from "@/components/chamado/ticket-preview-sheet"
@@ -32,6 +32,13 @@ import {
   type Ticket,
   type Usuario,
 } from "@/lib/types"
+
+// dnd-kit (usado só pelo Kanban) fica fora do bundle inicial de quem abre
+// a fila em lista — carrega sob demanda na primeira vez que `view=kanban`.
+const KanbanBoard = dynamic(
+  () => import("@/components/chamado/kanban-board").then((mod) => mod.KanbanBoard),
+  { loading: () => <ChamadosSkeleton />, ssr: false }
+)
 
 const PAGE_SIZE = 25
 
