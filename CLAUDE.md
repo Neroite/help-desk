@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git
+
+Nunca rodar `git commit` ou `git push` neste repositório sem autorização explícita do usuário para aquela ação específica. Autorização anterior não vale pra próxima vez — perguntar sempre, mesmo dentro da mesma sessão.
+
 ## Stack
 
 Next.js 15 (App Router, Turbopack) + React 19 + TypeScript + Tailwind v4 + shadcn/ui (`components.json` presente). Sem backend/DB — dados são mock, em memória.
