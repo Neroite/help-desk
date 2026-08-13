@@ -81,4 +81,4 @@
 
 - [x] 10.1 `npm test` — 41/41 testes passam (6 arquivos), incluindo os casos novos de `dropPermitido`/`aguardandoAnalista`.
 - [x] 10.2 `npm run lint` — sem apontamentos. `npx tsc --noEmit` também limpo.
-- [ ] 10.3 Percorrer manualmente com `npm run dev`: arrastar sem técnico, coluna derivada, iniciar/pausar com motivo, categoria editável, exclusão de categoria bloqueada e permitida, busca numérica e textual, proporção do detalhe em duas larguras.
+- [x] 10.3 Percorrido manualmente via agent-browser (login admin@helpdesk.dev): atribuição sem técnico abre diálogo e move corretamente, coluna derivada duplica com selo de status, pausar exige motivo e vira card de mensagem, retomar funciona, categoria editável salva e aparece na timeline, exclusão de categoria bloqueada (com filhos) e permitida (sem uso), busca numérica e textual com estado vazio dedicado, proporção do painel ~32% em 1280px e 1920px.
