@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { LayoutGrid, List, Plus } from "lucide-react"
 import { toast } from "sonner"
 
+import { AtribuirTecnicoDialog } from "@/components/chamado/atribuir-tecnico-dialog"
 import { BulkActionBar } from "@/components/chamado/bulk-action-bar"
 import { FiltroBar, FiltroChips } from "@/components/chamado/filtro-bar"
 import { useNovoChamado } from "@/components/chamado/novo-chamado-dialog"
@@ -16,7 +17,7 @@ import { TicketTable, type TicketSortField } from "@/components/chamado/ticket-t
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEstadoSincronizado } from "@/lib/hooks/use-estado-sincronizado"
-import { colunasDoKanban } from "@/lib/kanban/colunas"
+import { aguardandoAnalista, colunasDoKanban } from "@/lib/kanban/colunas"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import { calcularSeveridade } from "@/lib/sla-display"
@@ -45,6 +46,7 @@ const PAGE_SIZE = 25
 interface FiltrosAtivos {
   ticketNumero: string | null
   titulo: string | null
+  busca: string | null
   solicitante: string | null
   empresa: string | null
   categoria: string | null
@@ -54,6 +56,7 @@ interface FiltrosAtivos {
   status: StatusKey | null
   aberto: boolean
   semCategoria: boolean
+  aguardando: boolean
   agora: Date | null
 }
 
@@ -64,6 +67,22 @@ function ticketPassaFiltros(
 ): boolean {
   if (f.ticketNumero && !ticket.numero.toString().includes(f.ticketNumero)) return false
   if (f.titulo && !ticket.titulo.toLowerCase().includes(f.titulo.toLowerCase())) return false
+
+  // Busca unificada da topbar (?busca=) — número exato quando o termo é
+  // todo dígito, senão substring no título. Mesma semântica do filtro
+  // `busca` de listarChamados (lib/tickets/queries.ts), pra concordar com
+  // o que o servidor faria se a busca fosse aplicada lá.
+  if (f.busca) {
+    const termo = f.busca.trim()
+    if (/^\d+$/.test(termo)) {
+      if (ticket.numero !== Number(termo)) return false
+    } else if (!ticket.titulo.toLowerCase().includes(termo.toLowerCase())) {
+      return false
+    }
+  }
+
+  if (f.aguardando && !aguardandoAnalista(ticket)) return false
+
   if (f.solicitante && ticket.solicitanteId !== f.solicitante) return false
   if (f.empresa && ticket.empresaId !== f.empresa) return false
 
@@ -155,6 +174,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   const [timersAtivos, setTimersAtivos] = useState<Set<number>>(new Set())
   const [previewTicket, setPreviewTicket] = useState<Ticket | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [tecnicoDialog, setTecnicoDialog] = useState<{ numero: number; destino: StatusKey } | null>(null)
 
   // Fila inteira já é escopada por RLS (analista vê tudo, solicitante só a
   // própria empresa) — sem filtro, então cobre qualquer mudança de status
@@ -167,12 +187,14 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   const statusFiltro = searchParams.get("status") as StatusKey | null
   const ticketFiltro = searchParams.get("ticket")
   const assuntoFiltro = searchParams.get("assunto")
+  const buscaFiltro = searchParams.get("busca")
   const solicitanteFiltro = searchParams.get("solicitante")
   const categoriaFiltro = searchParams.get("categoria")
   const slaFiltro = searchParams.get("sla")
   const criadoFiltro = searchParams.get("criado")
   const abertoFiltro = searchParams.get("aberto") === "1"
   const semCategoriaFiltro = searchParams.get("semCategoria") === "1"
+  const aguardandoFiltro = searchParams.get("aguardando") === "1"
   const sort = (searchParams.get("sort") as TicketSortField | null) ?? "numero"
   const dir = searchParams.get("dir") === "asc" ? "asc" : "desc"
   const paginaSolicitada = Math.max(1, Number(searchParams.get("page") ?? "1") || 1)
@@ -193,6 +215,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
           {
             ticketNumero: ticketFiltro,
             titulo: assuntoFiltro,
+            busca: buscaFiltro,
             solicitante: solicitanteFiltro,
             empresa: empresaFiltro,
             categoria: categoriaFiltro,
@@ -202,6 +225,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
             status: statusFiltro,
             aberto: abertoFiltro,
             semCategoria: semCategoriaFiltro,
+            aguardando: aguardandoFiltro,
             agora,
           },
           categoriasProblema
@@ -265,6 +289,19 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
         if (statusAnterior) aplicarLocal(numero, { statusKey: statusAnterior })
         toast.error(`Não foi possível mover o chamado #${numero}.`)
       })
+  }
+
+  // Kanban recusou o drop por falta de técnico (dropPermitido devolveu
+  // "exige-tecnico") -- abre o diálogo em vez de mover direto; o diálogo
+  // chama atribuirEMover e, no sucesso, cai em handleAtribuirSucesso.
+  function handleExigeTecnico(numero: number, destino: StatusKey) {
+    setTecnicoDialog({ numero, destino })
+  }
+
+  function handleAtribuirSucesso(numero: number, analistaId: string, destino: StatusKey) {
+    aplicarLocal(numero, { analistaId, statusKey: destino })
+    const rotulo = statusRotulos?.[destino] ?? STATUS_META[destino].rotuloPadrao
+    toast.success(`Chamado #${numero} atribuído e movido para "${rotulo}".`)
   }
 
   function handleQuickEditChange(
@@ -379,113 +416,134 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-2">
-          <FiltroBar />
-          <FiltroChips />
+      {/* Camada extra em volta de filtros + conteúdo + paginação -- título e
+          "Novo chamado" ficam fora, como cabeçalho de página. Mesmo
+          tratamento pra lista e Kanban, pra não divergir entre as duas visões. */}
+      <div className="flex flex-col gap-(--space-3) rounded-xl border border-border bg-surface p-(--space-4) shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-col gap-2">
+            <FiltroBar />
+            <FiltroChips />
+          </div>
+
+          <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-muted p-[3px]">
+            <Button
+              size="sm"
+              variant={view === "lista" ? "default" : "ghost"}
+              render={<Link href={buildHref({ view: "lista" })} scroll={false} />}
+              nativeButton={false}
+              className="cursor-pointer"
+            >
+              <List data-icon="inline-start" />
+              Lista
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "kanban" ? "default" : "ghost"}
+              render={<Link href={buildHref({ view: "kanban" })} scroll={false} />}
+              nativeButton={false}
+              className="cursor-pointer"
+            >
+              <LayoutGrid data-icon="inline-start" />
+              Kanban
+            </Button>
+          </div>
         </div>
 
-        <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-muted p-[3px]">
-          <Button
-            size="sm"
-            variant={view === "lista" ? "default" : "ghost"}
-            render={<Link href={buildHref({ view: "lista" })} scroll={false} />}
-            nativeButton={false}
-            className="cursor-pointer"
-          >
-            <List data-icon="inline-start" />
-            Lista
-          </Button>
-          <Button
-            size="sm"
-            variant={view === "kanban" ? "default" : "ghost"}
-            render={<Link href={buildHref({ view: "kanban" })} scroll={false} />}
-            nativeButton={false}
-            className="cursor-pointer"
-          >
-            <LayoutGrid data-icon="inline-start" />
-            Kanban
-          </Button>
-        </div>
-      </div>
+        {!relogioPronto ? (
+          <ChamadosSkeleton />
+        ) : totalItens === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
+            <p className="text-sm text-muted-foreground">
+              {buscaFiltro ? `Nenhum chamado para "${buscaFiltro}".` : "Nenhum chamado com esses filtros."}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href="/chamados" />}
+              nativeButton={false}
+              className="cursor-pointer"
+            >
+              {buscaFiltro ? "Limpar busca" : "Limpar filtros"}
+            </Button>
+          </div>
+        ) : view === "kanban" ? (
+          <KanbanBoard
+            tickets={filtrados}
+            colunas={colunasKanban}
+            onStatusChange={handleStatusChange}
+            onExigeTecnico={handleExigeTecnico}
+          />
+        ) : (
+          <>
+            <div className="hidden md:block">
+              <TicketTable
+                tickets={paginaTickets}
+                sort={sort}
+                dir={dir}
+                onSort={handleSort}
+                statusRotulos={statusRotulos}
+                selected={selecionados}
+                onToggleSelect={handleToggleSelect}
+                onToggleSelectAll={handleToggleSelectAll}
+                onPreview={handlePreview}
+                onQuickEditChange={handleQuickEditChange}
+                runningTimers={timersAtivos}
+                onToggleTimer={handleToggleTimer}
+              />
 
-      {!relogioPronto ? (
-        <ChamadosSkeleton />
-      ) : totalItens === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-sm text-muted-foreground">Nenhum chamado com esses filtros.</p>
-          <Button
-            variant="outline"
-            size="sm"
-            render={<Link href="/chamados" />}
-            nativeButton={false}
-            className="cursor-pointer"
-          >
-            Limpar filtros
-          </Button>
-        </div>
-      ) : view === "kanban" ? (
-        <KanbanBoard
-          tickets={filtrados}
-          colunas={colunasKanban}
-          onStatusChange={handleStatusChange}
-        />
-      ) : (
-        <>
-          <div className="hidden md:block">
-            <TicketTable
-              tickets={paginaTickets}
-              sort={sort}
-              dir={dir}
-              onSort={handleSort}
-              statusRotulos={statusRotulos}
-              selected={selecionados}
-              onToggleSelect={handleToggleSelect}
-              onToggleSelectAll={handleToggleSelectAll}
-              onPreview={handlePreview}
-              onQuickEditChange={handleQuickEditChange}
-              runningTimers={timersAtivos}
-              onToggleTimer={handleToggleTimer}
-            />
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-              <span>
-                Mostrando {totalItens === 0 ? 0 : inicioIndice + 1} a{" "}
-                {Math.min(inicioIndice + PAGE_SIZE, totalItens)} de {totalItens} itens
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer"
-                  disabled={paginaAtual <= 1}
-                  onClick={() => updateParam({ page: String(paginaAtual - 1) })}
-                >
-                  Anterior
-                </Button>
-                <span className="font-tabular px-1">
-                  Página {paginaAtual} de {totalPaginas}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                <span>
+                  Mostrando {totalItens === 0 ? 0 : inicioIndice + 1} a{" "}
+                  {Math.min(inicioIndice + PAGE_SIZE, totalItens)} de {totalItens} itens
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer"
-                  disabled={paginaAtual >= totalPaginas}
-                  onClick={() => updateParam({ page: String(paginaAtual + 1) })}
-                >
-                  Próxima
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    disabled={paginaAtual <= 1}
+                    onClick={() => updateParam({ page: String(paginaAtual - 1) })}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="font-tabular px-1">
+                    Página {paginaAtual} de {totalPaginas}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    disabled={paginaAtual >= totalPaginas}
+                    onClick={() => updateParam({ page: String(paginaAtual + 1) })}
+                  >
+                    Próxima
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-col gap-2 md:hidden">
-            {paginaTickets.map((ticket) => (
-              <TicketCard key={ticket.numero} ticket={ticket} />
-            ))}
-          </div>
-        </>
-      )}
+            <div className="flex flex-col gap-2 md:hidden">
+              {paginaTickets.map((ticket) => (
+                <TicketCard key={ticket.numero} ticket={ticket} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <AtribuirTecnicoDialog
+        open={tecnicoDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setTecnicoDialog(null)
+        }}
+        ticketNumero={tecnicoDialog?.numero ?? null}
+        destino={tecnicoDialog?.destino ?? null}
+        rotuloDestino={
+          tecnicoDialog ? (statusRotulos?.[tecnicoDialog.destino] ?? STATUS_META[tecnicoDialog.destino].rotuloPadrao) : ""
+        }
+        onSucesso={handleAtribuirSucesso}
+      />
 
       <BulkActionBar
         count={selecionados.size}

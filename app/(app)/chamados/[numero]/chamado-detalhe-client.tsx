@@ -7,6 +7,7 @@ import {
   Check,
   Link2,
   Paperclip,
+  Pause,
   Play,
   Printer,
   X,
@@ -17,7 +18,10 @@ import { toast } from "sonner"
 import { AnexoList } from "@/components/chamado/anexo-list"
 import { ApontamentoHoras } from "@/components/chamado/apontamento-horas"
 import { AvaliacaoEstrelas } from "@/components/chamado/avaliacao-estrelas"
+import { CategoriaAtendimentoSelect } from "@/components/chamado/categoria-atendimento-select"
+import { CategoriaProblemaSelect } from "@/components/chamado/categoria-problema-select"
 import { ComentarioComposer } from "@/components/chamado/comentario-composer"
+import { PausarDialog } from "@/components/chamado/pausar-dialog"
 import { SlaBadge } from "@/components/chamado/sla-badge"
 import { SlaProgress } from "@/components/chamado/sla-progress"
 import { TicketTimeline, type FiltroTimeline } from "@/components/chamado/ticket-timeline"
@@ -37,10 +41,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useEstadoSincronizado } from "@/lib/hooks/use-estado-sincronizado"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
-import { adicionarComentario, definirPrioridade, mudarStatus } from "@/lib/tickets/actions"
+import {
+  adicionarComentario,
+  definirCategorias,
+  definirPrioridade,
+  iniciarAtendimento,
+  mudarStatus,
+  retomarChamado,
+} from "@/lib/tickets/actions"
 import { PRIORIDADE_META, STATUS_META } from "@/lib/status"
 import {
   PRIORIDADES,
+  STATUS_FINAIS,
   STATUS_KEYS,
   type Anexo,
   type ApontamentoHoras as ApontamentoHorasItem,
@@ -167,28 +179,19 @@ export function ChamadoDetalheClient({
 }: ChamadoDetalheClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { empresaPorId, usuarioPorId, categoriasAtendimento, categoriasProblema, usuarioAtual } =
-    useReferenceData()
+  const { empresaPorId, usuarioPorId, usuarioAtual } = useReferenceData()
 
   const empresa = empresaPorId(ticket.empresaId)
   const solicitante = usuarioPorId(ticket.solicitanteId)
   const analista = usuarioPorId(ticket.analistaId)
 
-  const catAtendimento = categoriasAtendimento.find((c) => c.id === ticket.catAtendimentoId)
-  const catProblema = categoriasProblema.find((c) => c.id === ticket.catProblemaId)
-  const catProblemaPai = catProblema?.paiId
-    ? categoriasProblema.find((c) => c.id === catProblema.paiId)
-    : null
-  const problemaRotulo = catProblema
-    ? catProblemaPai
-      ? `${catProblemaPai.nome} > ${catProblema.nome}`
-      : catProblema.nome
-    : "-"
-
   const [statusKey, setStatusKey] = useEstadoSincronizado(ticket.statusKey)
   const [prioridade, setPrioridade] = useEstadoSincronizado(ticket.prioridade)
+  const [catAtendimentoId, setCatAtendimentoId] = useEstadoSincronizado(ticket.catAtendimentoId ?? "")
+  const [catProblemaId, setCatProblemaId] = useEstadoSincronizado(ticket.catProblemaId ?? "")
   const [comentariosState, setComentariosState] = useEstadoSincronizado(comentarios)
   const [timelineFiltro, setTimelineFiltro] = useState<FiltroTimeline>("todos")
+  const [pausarAberto, setPausarAberto] = useState(false)
 
   // Sem filtro por linha (ver comentário em use-realtime-refresh.ts): avisa
   // em qualquer mudança de ticket/comentário/evento, não só a deste
@@ -214,8 +217,24 @@ export function ChamadoDetalheClient({
     router.push(query ? `?${query}` : "?", { scroll: false })
   }
 
+  // "Em andamento" tem dois caminhos conforme o status atual: retomar (vindo
+  // de pausado, destrava o SLA) ou iniciar (primeira vez, ou vindo de
+  // aguardando aprovação). "Pausado" nunca muda status direto -- sempre
+  // abre o diálogo de motivo. Os demais status continuam no mudarStatus
+  // genérico de sempre.
   function handleStatusChange(value: StatusKey | null) {
     if (!value) return
+
+    if (value === "pausado") {
+      setPausarAberto(true)
+      return
+    }
+    if (value === "em_andamento") {
+      if (statusKey === "pausado") handleRetomar()
+      else handleIniciarAtendimento()
+      return
+    }
+
     const anterior = statusKey
     setStatusKey(value)
     mudarStatus(ticket.numero, value)
@@ -226,6 +245,46 @@ export function ChamadoDetalheClient({
       .catch(() => {
         setStatusKey(anterior)
         toast.error("Não foi possível mudar o status.")
+      })
+  }
+
+  function handleIniciarAtendimento() {
+    iniciarAtendimento(ticket.numero, usuarioAtual?.id ?? null)
+      .then(() => {
+        toast.success("Atendimento iniciado")
+        router.refresh()
+      })
+      .catch(() => toast.error("Não foi possível iniciar o atendimento."))
+  }
+
+  function handleRetomar() {
+    retomarChamado(ticket.numero)
+      .then(() => {
+        toast.success("Atendimento retomado")
+        router.refresh()
+      })
+      .catch(() => toast.error("Não foi possível retomar o atendimento."))
+  }
+
+  function handlePausarSucesso() {
+    toast.success("Chamado pausado")
+    router.refresh()
+  }
+
+  function handleCategoriasChange(novoAtendimento: string, novoProblema: string) {
+    const atendimentoAnterior = catAtendimentoId
+    const problemaAnterior = catProblemaId
+    setCatAtendimentoId(novoAtendimento)
+    setCatProblemaId(novoProblema)
+    definirCategorias(ticket.numero, novoAtendimento || null, novoProblema || null)
+      .then(() => {
+        toast.success("Categorias atualizadas")
+        router.refresh()
+      })
+      .catch(() => {
+        setCatAtendimentoId(atendimentoAnterior)
+        setCatProblemaId(problemaAnterior)
+        toast.error("Não foi possível atualizar as categorias.")
       })
   }
 
@@ -291,20 +350,30 @@ export function ChamadoDetalheClient({
   )
 
   const categoriasSection = (
-    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-categorias">
+    <section className="flex flex-col gap-(--space-3)" aria-labelledby="secao-categorias">
       <h2 id="secao-categorias" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         Categorias
       </h2>
-      <dl className="flex flex-col gap-1.5 text-sm">
-        <div className="flex items-center justify-between gap-2">
-          <dt className="text-muted-foreground">Atendimento</dt>
-          <dd className="font-medium text-foreground">{catAtendimento?.nome ?? "-"}</dd>
-        </div>
-        <div className="flex items-start justify-between gap-2">
-          <dt className="shrink-0 text-muted-foreground">Problema</dt>
-          <dd className="text-right font-medium text-foreground">{problemaRotulo}</dd>
-        </div>
-      </dl>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="detalhe-cat-atendimento" className="text-xs text-muted-foreground">
+          Atendimento
+        </label>
+        <CategoriaAtendimentoSelect
+          id="detalhe-cat-atendimento"
+          value={catAtendimentoId}
+          onValueChange={(value) => handleCategoriasChange(value, catProblemaId)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="detalhe-cat-problema" className="text-xs text-muted-foreground">
+          Problema
+        </label>
+        <CategoriaProblemaSelect
+          id="detalhe-cat-problema"
+          value={catProblemaId}
+          onValueChange={(value) => handleCategoriasChange(catAtendimentoId, value)}
+        />
+      </div>
     </section>
   )
 
@@ -449,7 +518,16 @@ export function ChamadoDetalheClient({
             <div className="flex items-center gap-1.5">
               <AcaoToolbar icon={Link2} rotulo="Vincular chamado" onClick={() => toast.success("Vínculo registrado (mock)")} />
               <AcaoToolbar icon={Paperclip} rotulo="Anexar arquivo" onClick={() => toast.success("Anexo registrado (mock)")} />
-              <AcaoToolbar icon={Play} rotulo="Iniciar timer" tone="verde" onClick={() => toast.success("Cronômetro iniciado (mock)")} />
+              {statusKey === "em_andamento" ? (
+                <AcaoToolbar icon={Pause} rotulo="Pausar chamado" onClick={() => setPausarAberto(true)} />
+              ) : !STATUS_FINAIS.includes(statusKey) ? (
+                <AcaoToolbar
+                  icon={Play}
+                  rotulo={statusKey === "pausado" ? "Retomar atendimento" : "Iniciar atendimento"}
+                  tone="verde"
+                  onClick={statusKey === "pausado" ? handleRetomar : handleIniciarAtendimento}
+                />
+              ) : null}
               <AcaoToolbar icon={Printer} rotulo="Imprimir" onClick={() => window.print()} />
               <AcaoToolbar icon={Calendar} rotulo="Agendar" onClick={() => toast.success("Agendamento registrado (mock)")} />
               <AcaoToolbar icon={Check} rotulo="Finalizar chamado" tone="preto" onClick={() => handleStatusChange("finalizado")} />
@@ -539,14 +617,17 @@ export function ChamadoDetalheClient({
         </div>
 
         {/* >= 768px: 2 colunas em telas medias (painel desce abaixo da timeline),
-            3 regioes lado a lado a partir de 1024px (painel fixo de 320px). */}
-        <div className="hidden gap-(--space-4) md:flex md:flex-col lg:flex-row lg:items-start">
+            3 regioes lado a lado a partir de 1024px -- painel em proporção
+            (~1/3 da largura útil, referência Milvus), não mais fixo em 320px. */}
+        <div className="hidden gap-(--space-4) md:flex md:flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(340px,32%)] lg:items-start">
           {timelineSection}
 
           <Separator className="lg:hidden" />
-          <Separator orientation="vertical" className="hidden self-stretch lg:block" />
 
-          <aside className="flex w-full flex-col gap-(--space-4) lg:w-80 lg:shrink-0" aria-label="Detalhes do chamado">
+          <aside
+            className="flex w-full flex-col gap-(--space-4) lg:border-l lg:border-border lg:pl-(--space-4)"
+            aria-label="Detalhes do chamado"
+          >
             {solicitanteSection}
             <Separator />
             {infoSection}
@@ -563,6 +644,13 @@ export function ChamadoDetalheClient({
           </aside>
         </div>
       </div>
+
+      <PausarDialog
+        open={pausarAberto}
+        onOpenChange={setPausarAberto}
+        ticketNumero={ticket.numero}
+        onSucesso={handlePausarSucesso}
+      />
     </TooltipProvider>
   )
 }

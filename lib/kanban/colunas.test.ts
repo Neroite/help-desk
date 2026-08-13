@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { Empresa, Ticket } from "@/lib/types"
 
-import { colunasDoKanban, dropPermitido } from "./colunas"
+import { aguardandoAnalista, colunasDoKanban, dropPermitido } from "./colunas"
 
 function empresa(overrides: Partial<Empresa> = {}): Empresa {
   return {
@@ -35,12 +35,14 @@ function ticket(overrides: Partial<Ticket> = {}): Ticket {
     slaSolucaoVenceEm: null,
     slaPausadoEm: null,
     slaMinutosPausados: 0,
+    ultimaInteracaoEm: null,
+    ultimaInteracaoPapel: null,
     ...overrides,
   }
 }
 
 describe("colunasDoKanban", () => {
-  it("sem empresa, devolve as 6 colunas globais com rótulo padrão", () => {
+  it("sem empresa, devolve os status globais (exceto cancelado) + coluna derivada", () => {
     const colunas = colunasDoKanban(undefined)
     expect(colunas.map((c) => c.statusKey)).toEqual([
       "aguardando_aprovacao",
@@ -48,14 +50,15 @@ describe("colunasDoKanban", () => {
       "em_andamento",
       "pausado",
       "finalizado",
-      "cancelado",
+      null,
     ])
-    expect(colunas.find((c) => c.statusKey === "a_fazer")?.rotulo).toBe("A fazer")
+    expect(colunas.at(-1)).toMatchObject({ tipo: "derivada", rotulo: "Última interação do cliente" })
+    expect(colunas.find((c) => c.statusKey === "a_fazer")).toMatchObject({ tipo: "status", rotulo: "A fazer" })
   })
 
-  it("com empresa, devolve só os status ativos dela", () => {
+  it("com empresa, devolve só os status ativos dela + coluna derivada", () => {
     const colunas = colunasDoKanban(empresa())
-    expect(colunas.map((c) => c.statusKey)).toEqual(["a_fazer", "em_andamento", "finalizado"])
+    expect(colunas.map((c) => c.statusKey)).toEqual(["a_fazer", "em_andamento", "finalizado", null])
   })
 
   it("com empresa, usa o rótulo customizado quando existe, senão o padrão", () => {
@@ -63,20 +66,64 @@ describe("colunasDoKanban", () => {
     expect(colunas.find((c) => c.statusKey === "a_fazer")?.rotulo).toBe("Fila")
     expect(colunas.find((c) => c.statusKey === "finalizado")?.rotulo).toBe("Finalizado")
   })
+
+  it("remove a coluna cancelado mesmo quando a empresa a usa", () => {
+    const colunas = colunasDoKanban(empresa({ statusAtivos: ["a_fazer", "cancelado"] }))
+    expect(colunas.map((c) => c.statusKey)).toEqual(["a_fazer", null])
+  })
 })
 
 describe("dropPermitido", () => {
   const colunas = colunasDoKanban(empresa())
 
   it("recusa soltar na mesma coluna em que o ticket já está", () => {
-    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "a_fazer", colunas)).toBe(false)
+    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "a_fazer", colunas)).toBe("bloqueado")
   })
 
   it("recusa soltar num status fora das colunas visíveis", () => {
-    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "pausado", colunas)).toBe(false)
+    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "pausado", colunas)).toBe("bloqueado")
   })
 
-  it("permite soltar numa coluna diferente e visível", () => {
-    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "em_andamento", colunas)).toBe(true)
+  it("exige técnico ao sair de A fazer sem analista atribuído", () => {
+    expect(
+      dropPermitido(ticket({ statusKey: "a_fazer", analistaId: null }), "em_andamento", colunas)
+    ).toBe("exige-tecnico")
+  })
+
+  it("permite soltar numa coluna diferente e visível quando há analista", () => {
+    expect(
+      dropPermitido(ticket({ statusKey: "a_fazer", analistaId: "analista-1" }), "em_andamento", colunas)
+    ).toBe("permitido")
+  })
+
+  it("permite cancelar mesmo sem analista atribuído", () => {
+    const colunasComCancelado = [...colunas, { tipo: "status" as const, statusKey: "cancelado" as const, rotulo: "Cancelado" }]
+    expect(
+      dropPermitido(ticket({ statusKey: "a_fazer", analistaId: null }), "cancelado", colunasComCancelado)
+    ).toBe("permitido")
+  })
+})
+
+describe("aguardandoAnalista", () => {
+  it("verdadeiro quando a última interação foi do solicitante e o chamado está aberto", () => {
+    expect(
+      aguardandoAnalista(ticket({ statusKey: "em_andamento", ultimaInteracaoPapel: "solicitante" }))
+    ).toBe(true)
+  })
+
+  it("falso quando a última interação foi de um analista/admin", () => {
+    expect(aguardandoAnalista(ticket({ statusKey: "em_andamento", ultimaInteracaoPapel: "analista" }))).toBe(
+      false
+    )
+  })
+
+  it("falso quando o chamado já está finalizado, mesmo com última interação do solicitante", () => {
+    expect(
+      aguardandoAnalista(ticket({ statusKey: "finalizado", ultimaInteracaoPapel: "solicitante" }))
+    ).toBe(false)
+  })
+
+  it("falso quando não há nenhuma interação registrada", () => {
+    expect(aguardandoAnalista(ticket({ statusKey: "em_andamento", ultimaInteracaoPapel: null }))).toBe(false)
   })
 })

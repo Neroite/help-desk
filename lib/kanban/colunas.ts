@@ -1,31 +1,55 @@
 import { STATUS_META } from "@/lib/status"
-import { STATUS_KEYS, type Empresa, type StatusKey, type Ticket } from "@/lib/types"
+import { STATUS_FINAIS, STATUS_KEYS, type Empresa, type StatusKey, type Ticket } from "@/lib/types"
 
-export interface ColunaKanban {
-  statusKey: StatusKey
-  rotulo: string
+export type ColunaKanban =
+  | { tipo: "status"; statusKey: StatusKey; rotulo: string }
+  | { tipo: "derivada"; statusKey: null; rotulo: string }
+
+const ROTULO_COLUNA_DERIVADA = "Última interação do cliente"
+
+// "Cancelado" sai do quadro (raramente usado, e cancelar continua possível
+// pelo menu do card / Select do detalhe) — no lugar entra uma coluna
+// derivada, calculada, não persistida como status.
+function statusVisiveis(empresa: Empresa | undefined): StatusKey[] {
+  const base = empresa ? empresa.statusAtivos : STATUS_KEYS
+  return base.filter((s) => s !== "cancelado")
 }
 
-// Sem empresa (fila global, sem filtro): as 6 colunas padrão. Com empresa
-// selecionada: só os status que ela usa, com o rótulo customizado dela
-// quando existe — mesma regra que já valia inline em chamados-client.tsx.
+// Sem empresa (fila global, sem filtro): status padrão (exceto cancelado) +
+// coluna derivada. Com empresa selecionada: só os status que ela usa, com o
+// rótulo customizado dela quando existe — mesma regra que já valia inline em
+// chamados-client.tsx.
 export function colunasDoKanban(empresa: Empresa | undefined): ColunaKanban[] {
-  if (!empresa) {
-    return STATUS_KEYS.map((statusKey) => ({
-      statusKey,
-      rotulo: STATUS_META[statusKey].rotuloPadrao,
-    }))
-  }
-
-  return empresa.statusAtivos.map((statusKey) => ({
+  const colunasStatus: ColunaKanban[] = statusVisiveis(empresa).map((statusKey) => ({
+    tipo: "status",
     statusKey,
-    rotulo: empresa.statusRotulos[statusKey] ?? STATUS_META[statusKey].rotuloPadrao,
+    rotulo: empresa?.statusRotulos[statusKey] ?? STATUS_META[statusKey].rotuloPadrao,
   }))
+
+  return [...colunasStatus, { tipo: "derivada", statusKey: null, rotulo: ROTULO_COLUNA_DERIVADA }]
 }
+
+export type ResultadoDrop = "permitido" | "bloqueado" | "exige-tecnico"
 
 // Não permite soltar no mesmo status em que o ticket já está, nem num
-// status fora das colunas visíveis (ex.: empresa não usa esse status).
-export function dropPermitido(ticket: Ticket, destino: StatusKey, colunas: ColunaKanban[]): boolean {
-  if (destino === ticket.statusKey) return false
-  return colunas.some((c) => c.statusKey === destino)
+// status fora das colunas visíveis (ex.: empresa não usa esse status). Sair
+// de qualquer coluna exige técnico atribuído, exceto ir para "cancelado" —
+// cancelar um chamado que ninguém pegou ainda é legítimo.
+export function dropPermitido(ticket: Ticket, destino: StatusKey, colunas: ColunaKanban[]): ResultadoDrop {
+  if (destino === ticket.statusKey) return "bloqueado"
+
+  const destinoVisivel = colunas.some((c) => c.tipo === "status" && c.statusKey === destino)
+  if (!destinoVisivel) return "bloqueado"
+
+  if (destino !== "cancelado" && ticket.analistaId === null) return "exige-tecnico"
+
+  return "permitido"
+}
+
+// "Aguardando resposta do analista": chamado ainda aberto cuja última
+// interação pública foi do solicitante. Deriva de `ultima_interacao_papel`
+// (gravado por adicionarComentario), não recalcula a partir dos comentários
+// no cliente.
+export function aguardandoAnalista(ticket: Ticket): boolean {
+  return ticket.ultimaInteracaoPapel === "solicitante" && !STATUS_FINAIS.includes(ticket.statusKey)
 }

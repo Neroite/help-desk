@@ -266,13 +266,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [busca, setBusca] = useState("")
   const activeUrl = getActiveUrl(pathname)
 
+  // Qualquer termo -- número ou texto -- cai na visão Kanban de resultados,
+  // em vez do atalho antigo que só reconhecia número e ignorava texto
+  // livre em silêncio. ticketPassaFiltros (chamados-client.tsx) entende
+  // `busca` do mesmo jeito que listarChamados entenderia no servidor.
   function handleBuscaSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const termo = busca.trim().replace(/^#/, "")
-    if (/^\d+$/.test(termo)) {
-      router.push(`/chamados/${termo}`)
-      setBusca("")
-    }
+    if (!termo) return
+    router.push(`/chamados?view=kanban&busca=${encodeURIComponent(termo)}`)
+    setBusca("")
   }
 
   return (
@@ -306,8 +309,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="search"
                 value={busca}
                 onChange={(event) => setBusca(event.target.value)}
-                placeholder="Buscar por número do chamado (#482)..."
-                aria-label="Buscar chamado por número"
+                placeholder="Buscar por número ou título do chamado..."
+                aria-label="Buscar chamado por número ou título"
                 className="pl-8"
               />
             </form>

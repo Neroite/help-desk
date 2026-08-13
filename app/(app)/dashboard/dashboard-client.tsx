@@ -3,6 +3,7 @@
 import {
   AlertOctagon,
   AlertTriangle,
+  MessageSquareReply,
   Pause,
   Tag,
   Ticket as TicketIcon,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react"
 
 import { KpiTile } from "@/components/dashboard/kpi-tile"
+import { aguardandoAnalista } from "@/lib/kanban/colunas"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import { calcularSeveridade } from "@/lib/sla-display"
@@ -119,7 +121,7 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
 
       <section className="flex flex-col gap-(--space-2)">
         <h2 className="text-sm font-semibold text-foreground">SLA</h2>
-        <div className="grid grid-cols-2 gap-(--space-3) sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-(--space-3) sm:grid-cols-3 lg:grid-cols-5">
           <KpiTile
             rotulo="Estourados"
             valor={slaEstourado}
@@ -133,6 +135,13 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
             icon={AlertTriangle}
             colorVar="sla-atencao"
             href="/chamados?sla=prestes"
+          />
+          <KpiTile
+            rotulo="Aguardando resposta"
+            valor={tickets.filter(aguardandoAnalista).length}
+            icon={MessageSquareReply}
+            colorVar="sla-atencao"
+            href="/chamados?view=kanban&aguardando=1"
           />
           <KpiTile
             rotulo="Sem categoria"

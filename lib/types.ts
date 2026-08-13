@@ -98,7 +98,15 @@ export interface Avaliacao {
   comentario: string
 }
 
-export type TicketEventoTipo = "criado" | "status" | "atribuicao" | "prioridade"
+export type TicketEventoTipo =
+  | "criado"
+  | "status"
+  | "atribuicao"
+  | "prioridade"
+  | "inicio"
+  | "pausa"
+  | "retomada"
+  | "categoria"
 
 export interface TicketEvento {
   id: string
@@ -107,6 +115,7 @@ export interface TicketEvento {
   de: string | null
   para: string
   autorId: string
+  corpo: string | null
   criadoEm: string
 }
 
@@ -128,6 +137,8 @@ export interface Ticket {
   slaSolucaoVenceEm: string | null
   slaPausadoEm: string | null
   slaMinutosPausados: number
+  ultimaInteracaoEm: string | null
+  ultimaInteracaoPapel: Papel | null
   // Campos só do mock antigo (sem coluna real em helpdesk.ticket) — a UI
   // que ainda os usa trata como enriquecimento opcional, não dado real.
   assunto?: string

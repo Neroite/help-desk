@@ -36,6 +36,8 @@ interface TicketRow {
   sla_solucao_vence_em: string | null
   sla_pausado_em: string | null
   sla_minutos_pausados: number
+  ultima_interacao_em: string | null
+  ultima_interacao_papel: Ticket["ultimaInteracaoPapel"]
 }
 
 function mapTicket(row: TicketRow): Ticket {
@@ -57,6 +59,8 @@ function mapTicket(row: TicketRow): Ticket {
     slaSolucaoVenceEm: row.sla_solucao_vence_em,
     slaPausadoEm: row.sla_pausado_em,
     slaMinutosPausados: row.sla_minutos_pausados,
+    ultimaInteracaoEm: row.ultima_interacao_em,
+    ultimaInteracaoPapel: row.ultima_interacao_papel,
   }
 }
 
@@ -135,7 +139,7 @@ export async function listarEventos(ticketNumero: number): Promise<TicketEvento[
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("ticket_evento")
-    .select("id, ticket_id, tipo, de, para, autor_id, criado_em")
+    .select("id, ticket_id, tipo, de, para, autor_id, corpo, criado_em")
     .eq("ticket_id", ticketNumero)
     .order("criado_em", { ascending: true })
   if (error) throw error
@@ -146,6 +150,7 @@ export async function listarEventos(ticketNumero: number): Promise<TicketEvento[
     de: r.de,
     para: r.para,
     autorId: r.autor_id,
+    corpo: r.corpo,
     criadoEm: r.criado_em,
   }))
 }

@@ -5,6 +5,7 @@ import {
   Lock,
   Pencil,
   PlusCircle,
+  Tag,
   Trash2,
   UserPlus,
   type LucideIcon,
@@ -70,11 +71,13 @@ function Tempo({ iso, agora, className }: { iso: string; agora: Date | null; cla
   )
 }
 
+// Só usada como pílula (eventos SEM corpo) — eventos com corpo mostram o
+// texto direto (ver render abaixo), não passam por aqui.
 function descreverEvento(
   evento: TicketEvento,
   usuarioPorId: (id: string | null | undefined) => { nome: string } | undefined
 ): string {
-  const autor = usuarioPorId(evento.autorId)?.nome ?? "Alguém"
+  const autor = usuarioPorId(evento.autorId)?.nome ?? "Sistema"
   switch (evento.tipo) {
     case "criado":
       return `${autor} abriu o chamado`
@@ -87,6 +90,14 @@ function descreverEvento(
       const para = STATUS_META[evento.para as StatusKey]?.rotuloPadrao ?? evento.para
       return de ? `Status: ${de} → ${para}` : `Status: ${para}`
     }
+    case "inicio":
+      return `${autor} iniciou o atendimento`
+    case "pausa":
+      return `${autor} pausou o chamado`
+    case "retomada":
+      return `${autor} retomou o atendimento`
+    case "categoria":
+      return `${autor} atualizou as categorias`
   }
 }
 
@@ -100,22 +111,33 @@ function iconeEvento(evento: TicketEvento): LucideIcon {
       return Flag
     case "status":
       return STATUS_META[evento.para as StatusKey]?.icon ?? UserPlus
+    case "inicio":
+      return STATUS_META.em_andamento.icon
+    case "pausa":
+      return STATUS_META.pausado.icon
+    case "retomada":
+      return STATUS_META.em_andamento.icon
+    case "categoria":
+      return Tag
   }
 }
 
-// Antes todo evento era roxo fixo (--status-pausado), inclusive "chamado
-// finalizado" ou "Maria comentou". Agora cada evento de status usa a cor
-// do status de DESTINO — o resto do design já usa essas cores pra "estado
-// atual do chamado", então reaproveitar aqui reforça a leitura em vez de
-// introduzir uma paleta paralela.
+// Eventos de status (incluindo inicio/pausa/retomada, que também mudam
+// status_key) usam a cor do status de DESTINO — o resto do design já usa
+// essas cores pra "estado atual do chamado", então reaproveitar aqui
+// reforça a leitura em vez de introduzir uma paleta paralela.
 function corEvento(evento: TicketEvento): string {
   switch (evento.tipo) {
     case "status":
+    case "inicio":
+    case "pausa":
+    case "retomada":
       return STATUS_META[evento.para as StatusKey]?.colorVar ?? "muted-fg"
     // Não "status-a-fazer": vermelho em "chamado aberto" lê como erro, não como início.
     case "criado":
       return "primary"
     case "atribuicao":
+    case "categoria":
       return "secondary"
     // Preserva "roxo = evento administrativo" de antes, agora só aqui.
     case "prioridade":
@@ -158,6 +180,39 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
           const evento = linha.item
           const Icon = iconeEvento(evento)
           const cor = corEvento(evento)
+
+          // Eventos com texto livre (iniciar/pausar/retomar/categoria)
+          // renderizam como card de mensagem — mesma caixa de um
+          // comentário, estilo Milvus — em vez da pílula compacta. Eventos
+          // sem corpo (criado, status via Select, atribuição, prioridade
+          // isolada) continuam como pílula.
+          if (evento.corpo) {
+            const autor = usuarioPorId(evento.autorId)
+            return (
+              <li key={evento.id} className="flex items-start gap-(--space-3)">
+                <span
+                  className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: `color-mix(in srgb, var(--${cor}) 15%, transparent)`,
+                    color: `var(--${cor})`,
+                  }}
+                  aria-hidden="true"
+                >
+                  <Icon className="size-4" />
+                </span>
+                <div
+                  className="flex flex-1 flex-col gap-1.5 rounded-md border border-border bg-surface p-(--space-3) text-sm"
+                  style={{ borderLeftWidth: 4, borderLeftColor: `var(--${cor})` }}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-foreground">{autor?.nome ?? "Sistema"}</span>
+                    <Tempo iso={evento.criadoEm} agora={agora} className="ml-auto text-xs text-muted-foreground" />
+                  </div>
+                  <p className="text-foreground">{evento.corpo}</p>
+                </div>
+              </li>
+            )
+          }
 
           return (
             <li key={evento.id} className="flex items-start gap-(--space-3)">

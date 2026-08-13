@@ -144,6 +144,8 @@ function criarTicket(seed: TicketSeed): Ticket {
     slaSolucaoVenceEm: final ? null : slaSolucaoVenceEm,
     slaPausadoEm: pausado ? h(-Math.min(seed.criadoHorasAtras, 1)) : null,
     slaMinutosPausados: seed.statusKey === "pausado" ? 60 : 0,
+    ultimaInteracaoEm: null,
+    ultimaInteracaoPapel: null,
     tarefasAbertas: seed.tarefasAbertas ?? 0,
     tarefasConcluidas: seed.tarefasConcluidas ?? 0,
   }
@@ -264,10 +266,10 @@ export const comentarios: Comentario[] = [
 ]
 
 export const ticketEventos: TicketEvento[] = [
-  { id: "e1", ticketId: 482, tipo: "criado", de: null, para: "aguardando_aprovacao", autorId: "u-maria", criadoEm: h(-5) },
-  { id: "e2", ticketId: 482, tipo: "atribuicao", de: null, para: "u-joao", autorId: "u-joao", criadoEm: h(-4.9) },
-  { id: "e3", ticketId: 482, tipo: "prioridade", de: null, para: "alta", autorId: "u-joao", criadoEm: h(-4.9) },
-  { id: "e4", ticketId: 482, tipo: "status", de: "a_fazer", para: "em_andamento", autorId: "u-joao", criadoEm: h(-4.8) },
+  { id: "e1", ticketId: 482, tipo: "criado", de: null, para: "aguardando_aprovacao", autorId: "u-maria", corpo: null, criadoEm: h(-5) },
+  { id: "e2", ticketId: 482, tipo: "atribuicao", de: null, para: "u-joao", autorId: "u-joao", corpo: null, criadoEm: h(-4.9) },
+  { id: "e3", ticketId: 482, tipo: "prioridade", de: null, para: "alta", autorId: "u-joao", corpo: null, criadoEm: h(-4.9) },
+  { id: "e4", ticketId: 482, tipo: "status", de: "a_fazer", para: "em_andamento", autorId: "u-joao", corpo: null, criadoEm: h(-4.8) },
 ]
 
 export const apontamentos: ApontamentoHoras[] = [

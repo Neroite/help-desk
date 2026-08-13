@@ -1,10 +1,11 @@
 "use client"
 
 import { Fragment, useState } from "react"
-import { Pencil, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,8 @@ import {
   atualizarCategoriaProblema,
   criarCategoriaAtendimento,
   criarCategoriaProblema,
+  excluirCategoriaAtendimento,
+  excluirCategoriaProblema,
 } from "@/lib/config/categorias"
 import type { CategoriaAtendimento, CategoriaProblema } from "@/lib/types"
 
@@ -61,11 +64,55 @@ export function CategoriasClient({
   const [nome, setNome] = useState("")
   const [paiId, setPaiId] = useState<string>(CATEGORIA_RAIZ)
   const [salvando, setSalvando] = useState(false)
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
+  const [excluindo, setExcluindo] = useState<string | null>(null)
 
   const categoriasProblemaRaiz = categoriasProblema.filter((c) => c.paiId === null)
 
   function filhosDe(paiId: string) {
     return categoriasProblema.filter((c) => c.paiId === paiId)
+  }
+
+  function toggleExpandir(id: string) {
+    setExpandidos((atual) => {
+      const proximo = new Set(atual)
+      if (proximo.has(id)) {
+        proximo.delete(id)
+      } else {
+        proximo.add(id)
+      }
+      return proximo
+    })
+  }
+
+  async function excluirAtendimento(categoria: CategoriaAtendimento) {
+    if (!window.confirm(`Excluir "${categoria.nome}"?`)) return
+    setExcluindo(categoria.id)
+    try {
+      await excluirCategoriaAtendimento(categoria.id)
+      toast.success("Categoria excluída.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível excluir a categoria."
+      )
+    } finally {
+      setExcluindo(null)
+    }
+  }
+
+  async function excluirProblema(categoria: CategoriaProblema) {
+    if (!window.confirm(`Excluir "${categoria.nome}"?`)) return
+    setExcluindo(categoria.id)
+    try {
+      await excluirCategoriaProblema(categoria.id)
+      toast.success("Categoria excluída.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível excluir a categoria."
+      )
+    } finally {
+      setExcluindo(null)
+    }
   }
 
   function abrirEdicaoAtendimento(item: CategoriaAtendimento) {
@@ -166,15 +213,27 @@ export function CategoriasClient({
                   <TableRow key={categoria.id}>
                     <TableCell className="font-medium text-foreground">{categoria.nome}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="cursor-pointer"
-                        onClick={() => abrirEdicaoAtendimento(categoria)}
-                      >
-                        <Pencil data-icon="inline-start" />
-                        Editar
-                      </Button>
+                      <div className="flex items-center justify-end gap-(--space-1)">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => abrirEdicaoAtendimento(categoria)}
+                        >
+                          <Pencil data-icon="inline-start" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer text-destructive hover:bg-destructive/10"
+                          disabled={excluindo === categoria.id}
+                          onClick={() => excluirAtendimento(categoria)}
+                        >
+                          <Trash2 data-icon="inline-start" />
+                          Excluir
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -205,42 +264,96 @@ export function CategoriasClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categoriasProblemaRaiz.map((pai) => (
-                  <Fragment key={pai.id}>
-                    <TableRow>
-                      <TableCell className="font-medium text-foreground">{pai.nome}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="cursor-pointer"
-                          onClick={() => abrirEdicaoProblema(pai)}
-                        >
-                          <Pencil data-icon="inline-start" />
-                          Editar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                    {filhosDe(pai.id).map((filho) => (
-                      <TableRow key={filho.id}>
-                        <TableCell className="pl-(--space-4) text-muted-foreground">
-                          {filho.nome}
+                {categoriasProblemaRaiz.map((pai) => {
+                  const filhos = filhosDe(pai.id)
+                  const temFilhos = filhos.length > 0
+                  const expandida = expandidos.has(pai.id)
+                  return (
+                    <Fragment key={pai.id}>
+                      <TableRow>
+                        <TableCell className="font-medium text-foreground">
+                          <div className="flex items-center gap-(--space-2)">
+                            {temFilhos ? (
+                              <Collapsible open={expandida} onOpenChange={() => toggleExpandir(pai.id)}>
+                                <CollapsibleTrigger
+                                  className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  aria-label={expandida ? "Recolher subcategorias" : "Expandir subcategorias"}
+                                >
+                                  {expandida ? (
+                                    <ChevronDown className="size-4" />
+                                  ) : (
+                                    <ChevronRight className="size-4" />
+                                  )}
+                                </CollapsibleTrigger>
+                              </Collapsible>
+                            ) : (
+                              <span className="inline-block size-6" aria-hidden="true" />
+                            )}
+                            <span>{pai.nome}</span>
+                            {temFilhos && (
+                              <span className="text-xs text-muted-foreground">({filhos.length})</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="cursor-pointer"
-                            onClick={() => abrirEdicaoProblema(filho)}
-                          >
-                            <Pencil data-icon="inline-start" />
-                            Editar
-                          </Button>
+                          <div className="flex items-center justify-end gap-(--space-1)">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="cursor-pointer"
+                              onClick={() => abrirEdicaoProblema(pai)}
+                            >
+                              <Pencil data-icon="inline-start" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="cursor-pointer text-destructive hover:bg-destructive/10"
+                              disabled={excluindo === pai.id}
+                              onClick={() => excluirProblema(pai)}
+                            >
+                              <Trash2 data-icon="inline-start" />
+                              Excluir
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </Fragment>
-                ))}
+                      {temFilhos &&
+                        expandida &&
+                        filhos.map((filho) => (
+                          <TableRow key={filho.id}>
+                            <TableCell className="pl-(--space-8) text-muted-foreground">
+                              {filho.nome}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-(--space-1)">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="cursor-pointer"
+                                  onClick={() => abrirEdicaoProblema(filho)}
+                                >
+                                  <Pencil data-icon="inline-start" />
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="cursor-pointer text-destructive hover:bg-destructive/10"
+                                  disabled={excluindo === filho.id}
+                                  onClick={() => excluirProblema(filho)}
+                                >
+                                  <Trash2 data-icon="inline-start" />
+                                  Excluir
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </Fragment>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

@@ -42,3 +42,48 @@ export async function atualizarCategoriaProblema(
 
   revalidatePath("/configuracoes/categorias")
 }
+
+export async function excluirCategoriaAtendimento(id: string): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: emUso } = await supabase
+    .from("ticket")
+    .select("numero")
+    .eq("cat_atendimento_id", id)
+    .limit(1)
+  if (emUso && emUso.length > 0) {
+    throw new Error("Categoria em uso por um ou mais chamados — não pode ser excluída.")
+  }
+
+  const { error } = await supabase.from("categoria_atendimento").delete().eq("id", id)
+  if (error) throw error
+
+  revalidatePath("/configuracoes/categorias")
+}
+
+export async function excluirCategoriaProblema(id: string): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: filhas } = await supabase
+    .from("categoria_problema")
+    .select("id")
+    .eq("pai_id", id)
+    .limit(1)
+  if (filhas && filhas.length > 0) {
+    throw new Error("Categoria tem subcategorias vinculadas — exclua-as primeiro.")
+  }
+
+  const { data: emUso } = await supabase
+    .from("ticket")
+    .select("numero")
+    .eq("cat_problema_id", id)
+    .limit(1)
+  if (emUso && emUso.length > 0) {
+    throw new Error("Categoria em uso por um ou mais chamados — não pode ser excluída.")
+  }
+
+  const { error } = await supabase.from("categoria_problema").delete().eq("id", id)
+  if (error) throw error
+
+  revalidatePath("/configuracoes/categorias")
+}

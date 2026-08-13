@@ -11,6 +11,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatarRelativo } from "@/lib/formato"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useSlaClock } from "@/lib/sla-clock"
 import type { Ticket } from "@/lib/types"
@@ -28,26 +29,6 @@ interface TicketRowProps {
   ) => void
   isRunning: boolean
   onToggleTimer: (ticket: Ticket) => void
-}
-
-// "Agora" só existe depois de montar no cliente (useSlaClock) -- mesmo
-// guard de hidratação do SlaBadge/SlaProgress. Enquanto não montou,
-// mostramos reticências em vez de calcular o relativo.
-function formatarRelativo(dataIso: string, agora: Date): string {
-  const diffMs = new Date(dataIso).getTime() - agora.getTime()
-  const rtf = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" })
-
-  const diffMin = Math.round(diffMs / 60_000)
-  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, "minute")
-
-  const diffHoras = Math.round(diffMs / 3_600_000)
-  if (Math.abs(diffHoras) < 24) return rtf.format(diffHoras, "hour")
-
-  const diffDias = Math.round(diffMs / 86_400_000)
-  if (Math.abs(diffDias) < 30) return rtf.format(diffDias, "day")
-
-  const diffMeses = Math.round(diffMs / (86_400_000 * 30))
-  return rtf.format(diffMeses, "month")
 }
 
 // Linha da fila estilo Milvus: a linha inteira é clicável via técnica de

@@ -200,6 +200,7 @@ export function FiltroChips() {
 
     if (param === "ticket") chips.push({ param, rotulo: `Ticket: "${valor}"` })
     else if (param === "assunto") chips.push({ param, rotulo: `Assunto: "${valor}"` })
+    else if (param === "busca") chips.push({ param, rotulo: `Busca: "${valor}"` })
     else if (param === "solicitante")
       chips.push({ param, rotulo: `Solicitante: ${solicitantes.find((u) => u.id === valor)?.nome ?? valor}` })
     else if (param === "empresa")
@@ -225,6 +226,7 @@ export function FiltroChips() {
       chips.push({ param, rotulo: `Status: ${STATUS_META[valor as StatusKey]?.rotuloPadrao ?? valor}` })
     else if (param === "aberto" && valor === "1") chips.push({ param, rotulo: "Somente em aberto" })
     else if (param === "semCategoria" && valor === "1") chips.push({ param, rotulo: "Sem categoria" })
+    else if (param === "aguardando" && valor === "1") chips.push({ param, rotulo: "Aguardando resposta" })
   }
 
   if (chips.length === 0) return null

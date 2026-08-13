@@ -52,8 +52,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
   function handleBuscaSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const termo = busca.trim().replace(/^#/, "")
-    if (/^\d+$/.test(termo)) {
-      router.push(`/portal/chamados/${termo}`)
+    if (termo) {
+      router.push(`/portal?busca=${encodeURIComponent(termo)}`)
       setBusca("")
     }
   }
@@ -90,8 +90,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por número do chamado (#482)..."
-            aria-label="Buscar chamado por número"
+            placeholder="Buscar por número ou título do chamado..."
+            aria-label="Buscar chamado por número ou título"
             className="pl-8"
           />
         </form>

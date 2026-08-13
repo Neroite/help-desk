@@ -25,30 +25,52 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { type ColunaKanban, dropPermitido } from "@/lib/kanban/colunas"
+import { aguardandoAnalista, dropPermitido, type ColunaKanban } from "@/lib/kanban/colunas"
 import { STATUS_META } from "@/lib/status"
-import type { StatusKey, Ticket } from "@/lib/types"
+import { STATUS_KEYS, type StatusKey, type Ticket } from "@/lib/types"
 import { cn } from "@/lib/utils"
+
+// id de droppable pra coluna derivada — não é um StatusKey de verdade,
+// então nunca bate em STATUS_KEYS.includes(...) no handleDragEnd, e um
+// drop nela nunca resulta em mudança de status (ver colunas.ts).
+const DROPPABLE_ID_DERIVADA = "derivada"
 
 interface KanbanBoardProps {
   tickets: Ticket[]
   colunas: ColunaKanban[]
   onStatusChange?: (numero: number, novoStatus: StatusKey) => void
+  onExigeTecnico?: (numero: number, destino: StatusKey) => void
 }
 
 function KanbanCardArrastavel({
   ticket,
   colunas,
+  mostrarSeloStatus,
   onStatusChange,
+  onExigeTecnico,
 }: {
   ticket: Ticket
   colunas: ColunaKanban[]
+  mostrarSeloStatus?: boolean
   onStatusChange?: (numero: number, novoStatus: StatusKey) => void
+  onExigeTecnico?: (numero: number, destino: StatusKey) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ticket.numero,
   })
-  const outrasColunas = colunas.filter((c) => c.statusKey !== ticket.statusKey)
+  const outrasColunas = colunas.filter(
+    (c): c is Extract<ColunaKanban, { tipo: "status" }> => c.tipo === "status" && c.statusKey !== ticket.statusKey
+  )
+
+  function moverPara(destino: StatusKey) {
+    const resultado = dropPermitido(ticket, destino, colunas)
+    if (resultado === "bloqueado") return
+    if (resultado === "exige-tecnico") {
+      onExigeTecnico?.(ticket.numero, destino)
+      return
+    }
+    onStatusChange?.(ticket.numero, destino)
+  }
 
   return (
     <div
@@ -58,8 +80,8 @@ function KanbanCardArrastavel({
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn("group/kanban-card relative", isDragging && "opacity-0")}
     >
-      <TicketCard ticket={ticket} arrastavel />
-      {onStatusChange && outrasColunas.length > 0 && (
+      <TicketCard ticket={ticket} arrastavel mostrarSeloStatus={mostrarSeloStatus} />
+      {(onStatusChange || onExigeTecnico) && outrasColunas.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={`Mudar status do chamado #${ticket.numero}`}
@@ -70,10 +92,7 @@ function KanbanCardArrastavel({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {outrasColunas.map((coluna) => (
-              <DropdownMenuItem
-                key={coluna.statusKey}
-                onClick={() => onStatusChange(ticket.numero, coluna.statusKey)}
-              >
+              <DropdownMenuItem key={coluna.statusKey} onClick={() => moverPara(coluna.statusKey)}>
                 Mover para &ldquo;{coluna.rotulo}&rdquo;
               </DropdownMenuItem>
             ))}
@@ -89,15 +108,23 @@ function KanbanColumn({
   tickets,
   colunas,
   onStatusChange,
+  onExigeTecnico,
 }: {
   coluna: ColunaKanban
   tickets: Ticket[]
   colunas: ColunaKanban[]
   onStatusChange?: (numero: number, novoStatus: StatusKey) => void
+  onExigeTecnico?: (numero: number, destino: StatusKey) => void
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: coluna.statusKey })
-  const meta = STATUS_META[coluna.statusKey]
-  const Icon = meta.icon
+  const derivada = coluna.tipo === "derivada"
+  // Coluna derivada não é status real — id próprio, desabilitada como
+  // destino de drop (ver DROPPABLE_ID_DERIVADA acima).
+  const { setNodeRef, isOver } = useDroppable({
+    id: derivada ? DROPPABLE_ID_DERIVADA : coluna.statusKey,
+    disabled: derivada,
+  })
+  const meta = derivada ? null : STATUS_META[coluna.statusKey]
+  const Icon = meta?.icon
 
   return (
     <div
@@ -109,19 +136,29 @@ function KanbanColumn({
         // o cabeçalho colorido nos cantos arredondados do container, sem
         // precisar de rounded-t/rounded-b separados nele.
         "flex w-[85vw] shrink-0 snap-start flex-col overflow-hidden rounded-lg border sm:w-72",
-        isOver ? "border-primary/50" : "border-border"
+        derivada && "border-dashed",
+        !derivada && (isOver ? "border-primary/50" : "border-border")
       )}
     >
       {/* Barra forte estilo Milvus: cor cheia (colorVarSolid — fixa entre
           os temas, mesma variante usada nos badges), pouco espaçamento,
-          contador num "chip" translúcido escuro por cima. */}
+          contador num "chip" translúcido escuro por cima. Coluna derivada
+          não tem status/cor própria — cabeçalho neutro. */}
       <div
-        className="flex shrink-0 items-center gap-1.5 px-3 py-2 text-white"
-        style={{ backgroundColor: `var(--${meta.colorVarSolid})` }}
+        className={cn(
+          "flex shrink-0 items-center gap-1.5 px-3 py-2",
+          derivada ? "bg-muted text-foreground" : "text-white"
+        )}
+        style={meta ? { backgroundColor: `var(--${meta.colorVarSolid})` } : undefined}
       >
-        <Icon className="size-4" aria-hidden="true" />
+        {Icon && <Icon className="size-4" aria-hidden="true" />}
         <span className="text-xs font-semibold">{coluna.rotulo}</span>
-        <span className="ml-auto rounded-full bg-black/15 px-2 py-0.5 font-tabular text-xs font-semibold">
+        <span
+          className={cn(
+            "ml-auto rounded-full px-2 py-0.5 font-tabular text-xs font-semibold",
+            derivada ? "bg-foreground/10" : "bg-black/15"
+          )}
+        >
           {tickets.length}
         </span>
       </div>
@@ -138,7 +175,9 @@ function KanbanColumn({
             key={ticket.numero}
             ticket={ticket}
             colunas={colunas}
+            mostrarSeloStatus={derivada}
             onStatusChange={onStatusChange}
+            onExigeTecnico={onExigeTecnico}
           />
         ))}
         {tickets.length === 0 && (
@@ -155,9 +194,9 @@ function KanbanColumn({
 // menu "⋮" com a lista de status de destino, chamando o mesmo callback
 // `onStatusChange` — cobre teclado e touch sem depender do gesto de arrastar.
 // `colunas` já vem pronta de `colunasDoKanban()` (lib/kanban/colunas.ts):
-// as 6 globais sem filtro de empresa, ou só os status ativos e os rótulos
-// dela com filtro.
-export function KanbanBoard({ tickets, colunas, onStatusChange }: KanbanBoardProps) {
+// os status visíveis (globais ou por empresa) mais a coluna derivada
+// "Última interação do cliente" ao fim.
+export function KanbanBoard({ tickets, colunas, onStatusChange, onExigeTecnico }: KanbanBoardProps) {
   const [ticketAtivo, setTicketAtivo] = useState<Ticket | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -171,12 +210,19 @@ export function KanbanBoard({ tickets, colunas, onStatusChange }: KanbanBoardPro
 
   function handleDragEnd(event: DragEndEvent) {
     setTicketAtivo(null)
-    const destino = event.over?.id as StatusKey | undefined
+    const destino = event.over?.id
     const numero = event.active.id as number
     const ticket = tickets.find((t) => t.numero === numero)
-    if (!destino || !ticket) return
-    if (!dropPermitido(ticket, destino, colunas)) return
-    onStatusChange?.(numero, destino)
+    if (!ticket || typeof destino !== "string") return
+    if (!STATUS_KEYS.includes(destino as StatusKey)) return // coluna derivada (ou nada): não é destino válido
+
+    const resultado = dropPermitido(ticket, destino as StatusKey, colunas)
+    if (resultado === "bloqueado") return
+    if (resultado === "exige-tecnico") {
+      onExigeTecnico?.(numero, destino as StatusKey)
+      return
+    }
+    onStatusChange?.(numero, destino as StatusKey)
   }
 
   return (
@@ -184,11 +230,16 @@ export function KanbanBoard({ tickets, colunas, onStatusChange }: KanbanBoardPro
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
         {colunas.map((coluna) => (
           <KanbanColumn
-            key={coluna.statusKey}
+            key={coluna.tipo === "status" ? coluna.statusKey : DROPPABLE_ID_DERIVADA}
             coluna={coluna}
-            tickets={tickets.filter((t) => t.statusKey === coluna.statusKey)}
+            tickets={
+              coluna.tipo === "status"
+                ? tickets.filter((t) => t.statusKey === coluna.statusKey)
+                : tickets.filter(aguardandoAnalista)
+            }
             colunas={colunas}
             onStatusChange={onStatusChange}
+            onExigeTecnico={onExigeTecnico}
           />
         ))}
       </div>
