@@ -18,6 +18,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-sidebar-active: var(--sidebar-active);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -59,13 +60,41 @@
   --color-status-finalizado: var(--status-finalizado);
   --color-status-cancelado: var(--status-cancelado);
 
+  /* Par "-fg" para texto pequeno (badges) — no light, o valor vibrante do
+     status não bate 4.5:1 sozinho; no dark o vibrante já passa, então os
+     dois blocos abaixo repetem o mesmo hex. Ver openspec/changes/
+     visual-cores-vibrantes. */
+  --color-status-aguardando-fg: var(--status-aguardando-fg);
+  --color-status-a-fazer-fg: var(--status-a-fazer-fg);
+  --color-status-andamento-fg: var(--status-andamento-fg);
+  --color-status-pausado-fg: var(--status-pausado-fg);
+  --color-status-finalizado-fg: var(--status-finalizado-fg);
+  --color-status-cancelado-fg: var(--status-cancelado-fg);
+
+  /* "-solid": fundo cheio com texto branco por cima (StatusBadge,
+     PrioridadeBadge, cabeçalho de coluna do Kanban) — ver comentário em
+     :root sobre por que não pode ser o mesmo par "-fg" de cima. */
+  --color-status-aguardando-solid: var(--status-aguardando-solid);
+  --color-status-a-fazer-solid: var(--status-a-fazer-solid);
+  --color-status-andamento-solid: var(--status-andamento-solid);
+  --color-status-pausado-solid: var(--status-pausado-solid);
+  --color-status-finalizado-solid: var(--status-finalizado-solid);
+  --color-status-cancelado-solid: var(--status-cancelado-solid);
+  --color-prioridade-media-solid: var(--prioridade-media-solid);
+
+  --color-kpi-meus: var(--kpi-meus);
+
   --color-sla-ok: var(--sla-ok);
   --color-sla-atencao: var(--sla-atencao);
   --color-sla-critico: var(--sla-critico);
   --color-sla-estourado: var(--sla-estourado);
   --color-sla-pausado: var(--sla-pausado);
 
-  /* Text scale — dashboard denso */
+  /* Text scale — Data-Dense Dashboard (docs/superpowers/specs/
+     2026-08-04-help-desk-design.md: "corpo da interface a 14px, tabela a
+     13px, nunca abaixo de 12px"). Um commit anterior tinha subido a base
+     pra 18px "por legibilidade", mas isso engordou linha de tabela e
+     densidade além do que o spec original pedia — revertido de volta. */
   --text-xs: 12px;
   --text-xs--line-height: 16px;
   --text-sm: 13px;
@@ -73,11 +102,11 @@
   --text-base: 14px;
   --text-base--line-height: 20px;
   --text-lg: 16px;
-  --text-lg--line-height: 24px;
+  --text-lg--line-height: 22px;
   --text-xl: 20px;
-  --text-xl--line-height: 28px;
+  --text-xl--line-height: 26px;
   --text-2xl: 24px;
-  --text-2xl--line-height: 32px;
+  --text-2xl--line-height: 30px;
 }
 
 :root {
@@ -110,22 +139,43 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
 
-  --sidebar: var(--surface);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--on-primary);
-  --sidebar-accent: #f1f5f9;
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  /* Status do chamado — mapa vibrante (a_fazer vermelho, em_andamento
+     verde, finalizado preto; decisão de produto, quebra a convenção
+     "verde = concluído"). Contraste calculado sobre #ffffff.
+     "-fg" é a variante usada como cor de TEXTO pequeno (StatusBadge),
+     onde o vibrante sozinho não bate 4.5:1. */
+  --status-aguardando: #ea580c; /* 3.64:1 — teto vibrante da família laranja/âmbar */
+  --status-aguardando-fg: #c2410c; /* 5.22:1 */
+  --status-a-fazer: #ef4444; /* 3.79:1 */
+  --status-a-fazer-fg: #dc2626; /* 4.87:1 */
+  --status-andamento: #16a34a; /* 3.30:1 */
+  --status-andamento-fg: #15803d; /* 5.02:1 */
+  --status-pausado: #8b5cf6; /* 4.25:1 */
+  --status-pausado-fg: #7c3aed; /* 5.74:1 */
+  --status-finalizado: #111827; /* 17.74:1 — não usar --foreground (#0f172a), precisa se distinguir dele */
+  --status-finalizado-fg: #111827;
+  --status-cancelado: #64748b; /* 4.77:1 */
+  --status-cancelado-fg: #64748b;
 
-  /* Status do chamado */
-  --status-aguardando: #d97706;
-  --status-a-fazer: #64748b;
-  --status-andamento: #2563eb;
-  --status-pausado: #7c3aed;
-  --status-finalizado: #059669;
-  --status-cancelado: #94a3b8;
+  /* "-solid": fundo cheio de badge/cabeçalho com texto BRANCO por cima —
+     diferente do par "-fg" acima (pensado como cor de TEXTO sobre a
+     superfície do app, que no dark vira claro e portanto ilegível como
+     fundo com texto branco). Fixo — não redefinido em .dark de propósito,
+     senão "Finalizado" viraria quase branco com texto branco em cima no
+     tema escuro. Reaproveita os mesmos hex do par "-fg" do light (já
+     documentados >= 4.5:1 contra branco, e contraste é simétrico). */
+  --status-aguardando-solid: #c2410c;
+  --status-a-fazer-solid: #dc2626;
+  --status-andamento-solid: #15803d;
+  --status-pausado-solid: #7c3aed;
+  --status-finalizado-solid: #111827;
+  --status-cancelado-solid: #64748b;
+  /* Prioridade "média" não tem par de status equivalente — âmbar-700,
+     ~5.02:1 contra branco. */
+  --prioridade-media-solid: #b45309;
+
+  /* Tile "Meus" do dashboard — azul, distinto do navy de "Abertos" (--primary) */
+  --kpi-meus: #2563eb; /* 5.22:1 */
 
   /* SLA */
   --sla-ok: #059669;
@@ -147,6 +197,18 @@
   --card-pad: 12px;
   --grid-gap: 8px;
   --radius: 6px;
+
+  /* Sidebar — rail escuro fixo, não segue o tema light/dark (decisão de
+     produto: idêntico ao Milvus em ambos os modos) */
+  --sidebar: #1e293b;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #0f172a;
+  --sidebar-ring: var(--ring);
+  --sidebar-active: #3b82f6;
 }
 
 .dark {
@@ -179,22 +241,25 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
 
-  --sidebar: var(--surface);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--on-primary);
-  --sidebar-accent: #263449;
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  /* Sidebar: rail escuro fixo — não redefinido aqui de propósito, ver :root */
 
-  /* Status do chamado — par escuro */
-  --status-aguardando: #fbbf24;
-  --status-a-fazer: #cbd5e1;
-  --status-andamento: #60a5fa;
-  --status-pausado: #a78bfa;
-  --status-finalizado: #34d399;
-  --status-cancelado: #94a3b8;
+  /* Status do chamado — par escuro. No dark todos os valores já passam
+     4.5:1 sozinhos sobre --surface, então "-fg" repete o vibrante em vez
+     de ganhar um segundo hex. */
+  --status-aguardando: #fb923c; /* 6.46:1 */
+  --status-aguardando-fg: #fb923c;
+  --status-a-fazer: #f87171; /* 5.25:1 */
+  --status-a-fazer-fg: #f87171;
+  --status-andamento: #4ade80; /* 8.30:1 */
+  --status-andamento-fg: #4ade80;
+  --status-pausado: #a78bfa; /* 5.38:1 */
+  --status-pausado-fg: #a78bfa;
+  --status-finalizado: #f1f5f9; /* 13.34:1 — quase branco; distingue de --cancelado pela luminância */
+  --status-finalizado-fg: #f1f5f9;
+  --status-cancelado: #94a3b8; /* 5.70:1 */
+  --status-cancelado-fg: #94a3b8;
+
+  --kpi-meus: #60a5fa; /* 5.74:1 */
 
   /* SLA — par escuro */
   --sla-ok: #34d399;

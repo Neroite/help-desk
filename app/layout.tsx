@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
+import { ThemeProvider } from "next-themes";
+import { SlaClockProvider } from "@/lib/sla-clock";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const firaSans = Fira_Sans({
@@ -15,7 +18,7 @@ const firaCode = Fira_Code({
 
 export const metadata: Metadata = {
   title: "Help-Desk",
-  description: "Sistema de help desk / gestao de tickets.",
+  description: "Sistema de help desk / gestão de tickets.",
 };
 
 export default function RootLayout({
@@ -24,11 +27,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
-      <body
-        className={`${firaSans.variable} ${firaCode.variable} antialiased`}
-      >
-        {children}
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      className={`${firaSans.variable} ${firaCode.variable}`}
+    >
+      <body className="antialiased">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <SlaClockProvider>{children}</SlaClockProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

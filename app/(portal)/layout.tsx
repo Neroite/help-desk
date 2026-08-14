@@ -1,35 +1,33 @@
 import type { ReactNode } from "react"
-import Link from "next/link"
 
-export default function PortalLayout({ children }: { children: ReactNode }) {
+import { ReferenceDataProvider } from "@/lib/reference-data/provider"
+import {
+  buscarUsuarioAtual,
+  listarCategoriasAtendimento,
+  listarCategoriasProblema,
+  listarEmpresas,
+  listarSlaPolicies,
+  listarUsuarios,
+} from "@/lib/tickets/queries"
+
+import { PortalShell } from "./portal-shell"
+
+export default async function PortalLayout({ children }: { children: ReactNode }) {
+  const [empresas, usuarios, categoriasAtendimento, categoriasProblema, slaPolicies, usuarioAtual] =
+    await Promise.all([
+      listarEmpresas(),
+      listarUsuarios(),
+      listarCategoriasAtendimento(),
+      listarCategoriasProblema(),
+      listarSlaPolicies(),
+      buscarUsuarioAtual(),
+    ])
+
   return (
-    <div className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 flex h-(--topbar-h) shrink-0 items-center justify-between border-b border-border bg-surface px-(--space-4)">
-        <span className="text-base font-semibold text-foreground">
-          Help-Desk
-        </span>
-        <nav className="flex items-center gap-(--space-4) text-sm">
-          <Link
-            href="/portal"
-            className="text-foreground/80 transition-colors hover:text-foreground"
-          >
-            Meus chamados
-          </Link>
-          <Link
-            href="/portal/novo"
-            className="text-foreground/80 transition-colors hover:text-foreground"
-          >
-            Abrir chamado
-          </Link>
-          <Link
-            href="/logout"
-            className="text-foreground/80 transition-colors hover:text-foreground"
-          >
-            Sair
-          </Link>
-        </nav>
-      </header>
-      <main className="flex-1 p-(--space-4)">{children}</main>
-    </div>
+    <ReferenceDataProvider
+      data={{ empresas, usuarios, categoriasAtendimento, categoriasProblema, slaPolicies, usuarioAtual }}
+    >
+      <PortalShell>{children}</PortalShell>
+    </ReferenceDataProvider>
   )
 }

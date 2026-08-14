@@ -1,0 +1,57 @@
+import { adicionarMinutosUteis, minutosUteisEntre } from "./calendario"
+
+interface PoliticaSla {
+  minutosResposta: number
+  minutosSolucao: number
+}
+
+// Estado de SLA do ticket em Date, isolado do formato de persistencia
+// (ISO string em lib/types.Ticket) — o motor nao acessa banco.
+export interface TicketSlaState {
+  criadoEm: Date
+  slaRespostaVenceEm: Date
+  slaSolucaoVenceEm: Date
+  slaPausadoEm: Date | null
+  slaMinutosPausados: number
+}
+
+interface Prazos {
+  respostaVenceEm: Date
+  solucaoVenceEm: Date
+}
+
+export function calcularPrazos(criadoEm: Date, politica: PoliticaSla): Prazos {
+  return {
+    respostaVenceEm: adicionarMinutosUteis(criadoEm, politica.minutosResposta),
+    solucaoVenceEm: adicionarMinutosUteis(criadoEm, politica.minutosSolucao),
+  }
+}
+
+export function aplicarPausa(ticket: TicketSlaState, agora: Date): TicketSlaState {
+  return { ...ticket, slaPausadoEm: agora }
+}
+
+export function aplicarRetomada(ticket: TicketSlaState, agora: Date): TicketSlaState {
+  if (!ticket.slaPausadoEm) return ticket
+
+  const minutosParados = minutosUteisEntre(ticket.slaPausadoEm, agora)
+
+  return {
+    ...ticket,
+    slaPausadoEm: null,
+    slaMinutosPausados: ticket.slaMinutosPausados + minutosParados,
+    slaRespostaVenceEm: adicionarMinutosUteis(ticket.slaRespostaVenceEm, minutosParados),
+    slaSolucaoVenceEm: adicionarMinutosUteis(ticket.slaSolucaoVenceEm, minutosParados),
+  }
+}
+
+export function recalcularPorPrioridade(ticket: TicketSlaState, novaPolitica: PoliticaSla): Prazos {
+  const base = calcularPrazos(ticket.criadoEm, novaPolitica)
+
+  if (ticket.slaMinutosPausados === 0) return base
+
+  return {
+    respostaVenceEm: adicionarMinutosUteis(base.respostaVenceEm, ticket.slaMinutosPausados),
+    solucaoVenceEm: adicionarMinutosUteis(base.solucaoVenceEm, ticket.slaMinutosPausados),
+  }
+}
