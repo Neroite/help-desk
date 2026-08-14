@@ -1,31 +1,55 @@
 # Migrations do schema `helpdesk`
 
-Este diretório versiona as migrations do schema `helpdesk` a partir da change
-`fluxo-atendimento-milvus` (2026-08-13). As sete migrations anteriores foram
-aplicadas diretamente no projeto Supabase remoto (`dyutvxtrcchkqvykjmyy`) via
-MCP, sem passar por arquivo local, e por isso não têm registro aqui:
+Este diretório versiona **todas** as migrations do schema `helpdesk`, aplicadas
+no projeto Supabase `byteflow-pro` (`dyutvxtrcchkqvykjmyy`). O schema é
+reprodutível do zero aplicando os arquivos em ordem de nome.
 
-- `20260807015858_helpdesk_schema_tables`
-- `20260807015958_helpdesk_rls`
-- `20260807020320_helpdesk_seed_referencia`
-- `20260807020555_helpdesk_seed_usuarios`
-- `20260808161107_helpdesk_usuario_select_staff_visivel`
-- `20260808164200_helpdesk_sla_policy_select_todos`
-- `20260811234711_fase3_habilita_realtime`
+O help desk vive num schema dedicado (`helpdesk`), separado do `public` que
+pertence ao ByteFlow — os dois convivem no mesmo projeto.
 
-Reproduzir o schema do zero exige recriar essas sete primeiro (schema,
-tabelas, RLS, seed) antes de aplicar as três incluídas aqui. A partir desta
-change, toda migration nova entra neste diretório no momento em que é
-aplicada via MCP.
+## Regra
 
-## Migrations desta change
+Toda migration nova entra aqui **como arquivo, no mesmo momento em que é
+aplicada** via MCP (`apply_migration`) ou CLI. Nome do arquivo:
+`<version>_<name>.sql`, batendo exatamente com o registro em
+`supabase_migrations.schema_migrations`.
 
-1. `helpdesk_ultima_interacao` — colunas `ticket.ultima_interacao_em` /
-   `ultima_interacao_papel` + backfill a partir do último comentário público
-   de cada chamado + índice.
-2. `helpdesk_evento_corpo` — coluna `ticket_evento.corpo`, usada pelos
-   eventos de início/pausa/retomada de atendimento.
-3. `helpdesk_evento_tipos_atendimento` — adiciona `inicio`, `pausa`,
-   `retomada`, `categoria` ao enum `evento_tipo`. Precisa ser uma migration
-   separada da anterior: Postgres não permite usar um valor de enum recém
-   adicionado na mesma transação em que ele foi criado.
+Conferência rápida de que nada ficou de fora. O filtro por `version >=
+'20260807'` isola as migrations do help desk das do ByteFlow, que vivem na
+mesma tabela e são anteriores:
+
+```sql
+select version, name from supabase_migrations.schema_migrations
+where version >= '20260807'
+order by version;
+```
+
+A contagem precisa bater com a de arquivos `.sql` neste diretório.
+
+## Ordem
+
+| # | Arquivo | O que faz |
+|---|---------|-----------|
+| 1 | `20260807015858_helpdesk_schema_tables.sql` | Schema, 4 enums (`papel`, `status_key`, `prioridade`, `evento_tipo`) e as 12 tabelas com índices e constraints. |
+| 2 | `20260807015958_helpdesk_rls.sql` | Expõe o schema ao PostgREST, grants, as 4 funções `SECURITY DEFINER` (`current_papel`, `current_empresa_id`, `is_staff`, `is_admin`) e RLS em todas as tabelas. |
+| 3 | `20260807020320_helpdesk_seed_referencia.sql` | Seed de referência: 2 empresas, políticas de SLA, categorias de atendimento e a árvore de categorias de problema. |
+| 4 | `20260807020555_helpdesk_seed_usuarios.sql` | ⚠️ **Seed de desenvolvimento.** 6 contas em `auth.users` com senha conhecida. Não aplicar em produção — ver aviso no topo do arquivo. |
+| 5 | `20260808161107_helpdesk_usuario_select_staff_visivel.sql` | Solicitante passa a enxergar nome de admin/analista (autor de comentário na timeline). |
+| 6 | `20260808164200_helpdesk_sla_policy_select_todos.sql` | `sla_policy` legível por todos: `criarChamado()` precisa da política padrão mesmo quando quem abre é o solicitante. |
+| 7 | `20260811234711_fase3_habilita_realtime.sql` | Adiciona `ticket`, `comentario` e `ticket_evento` à publication `supabase_realtime`. |
+| 8 | `20260813000001_helpdesk_ultima_interacao.sql` | Colunas `ticket.ultima_interacao_em` / `ultima_interacao_papel` + backfill a partir do último comentário público + índice. |
+| 9 | `20260813000002_helpdesk_evento_corpo.sql` | Coluna `ticket_evento.corpo`, usada pelos eventos de início/pausa/retomada. |
+| 10 | `20260813000003_helpdesk_evento_tipos_atendimento.sql` | Adiciona `inicio`, `pausa`, `retomada`, `categoria` ao enum `evento_tipo`. Precisa ser separada da anterior: Postgres não permite usar um valor de enum recém-criado na mesma transação. |
+| 11 | `20260813210000_helpdesk_apontamento_timer_unico.sql` | Índice parcial único: um timer aberto por analista, garantido no banco. |
+| 12 | `20260813210500_helpdesk_anexos_bucket.sql` | Bucket privado `helpdesk-anexos` (10 MB), função `anexo_ticket_do_path` e policies de `storage.objects`. |
+| 13 | `20260813210600_helpdesk_anexo_delete_policy.sql` | `delete` em `helpdesk.anexo` para staff — sem ela o metadado ficaria órfão ao remover o arquivo. |
+| 14 | `20260813211000_helpdesk_token_avaliacao.sql` | Coluna `ticket.token_avaliacao` (uuid, única): identificador opaco do link de avaliação enviado por e-mail. |
+| 15 | `20260813211100_helpdesk_avaliacao_por_token_rpc.sql` | RPCs públicas `chamado_por_token` e `avaliar_por_token` — única porta anônima da avaliação, sem abrir SELECT em `ticket`. |
+
+## Nota histórica
+
+As migrations 1–7 foram originalmente aplicadas direto no projeto remoto via
+MCP, sem arquivo local. Os arquivos acima foram recuperados de
+`supabase_migrations.schema_migrations` (coluna `statements`) e refletem
+literalmente o SQL que rodou no banco — não foram reescritos nem
+"melhorados", justamente para que reaplicá-los produza o schema atual.
