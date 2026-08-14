@@ -167,6 +167,7 @@ interface ChamadoDetalheClientProps {
   apontamentos: ApontamentoHorasItem[]
   anexos: Anexo[]
   avaliacao: Avaliacao | null
+  timerAberto: ApontamentoHorasItem | null
 }
 
 export function ChamadoDetalheClient({
@@ -176,6 +177,7 @@ export function ChamadoDetalheClient({
   apontamentos,
   anexos,
   avaliacao,
+  timerAberto,
 }: ChamadoDetalheClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -326,14 +328,19 @@ export function ChamadoDetalheClient({
     setTimelineFiltro((atual) => (atual === valor ? "todos" : valor))
   }
 
-  const totalMinutosApontados = apontamentos.reduce((soma, a) => soma + a.minutos, 0)
+  // Timer em aberto ainda não tem duração fechada — só soma o que encerrou.
+  const totalMinutosApontados = apontamentos.reduce((soma, a) => soma + (a.minutos ?? 0), 0)
 
   const horasSection = (
     <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-horas">
       <h2 id="secao-horas" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         Horas
       </h2>
-      <ApontamentoHoras apontamentos={apontamentos} />
+      <ApontamentoHoras
+        ticketNumero={ticket.numero}
+        apontamentos={apontamentos}
+        timerAberto={timerAberto}
+      />
     </section>
   )
 
@@ -345,7 +352,7 @@ export function ChamadoDetalheClient({
         </h2>
         <span className="font-tabular text-xs text-muted-foreground">{anexos.length}</span>
       </div>
-      <AnexoList anexos={anexos} />
+      <AnexoList anexos={anexos} ticketNumero={ticket.numero} />
     </section>
   )
 

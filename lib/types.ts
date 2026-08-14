@@ -77,9 +77,11 @@ export interface ApontamentoHoras {
   ticketId: number
   analistaId: string
   inicio: string
+  // `fim` e `minutos` são nulos enquanto o timer está rodando; só o
+  // encerramento (pararTimer) preenche os dois de uma vez.
   fim: string | null
-  minutos: number
-  descricao: string
+  minutos: number | null
+  descricao: string | null
   faturavel: boolean
 }
 

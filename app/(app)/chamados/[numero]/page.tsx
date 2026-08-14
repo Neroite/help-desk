@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 
+import { buscarTimerAberto } from "@/lib/tickets/apontamentos"
 import {
   buscarAvaliacao,
   buscarChamadoPorNumero,
@@ -22,12 +23,13 @@ export default async function ChamadoDetalhePage({ params }: ChamadoDetalhePageP
   const ticket = await buscarChamadoPorNumero(numeroTicket)
   if (!ticket) notFound()
 
-  const [comentarios, eventos, apontamentos, anexos, avaliacao] = await Promise.all([
+  const [comentarios, eventos, apontamentos, anexos, avaliacao, timerAberto] = await Promise.all([
     listarComentarios(numeroTicket),
     listarEventos(numeroTicket),
     listarApontamentos(numeroTicket),
     listarAnexos(numeroTicket),
     buscarAvaliacao(numeroTicket),
+    buscarTimerAberto(),
   ])
 
   return (
@@ -38,6 +40,7 @@ export default async function ChamadoDetalhePage({ params }: ChamadoDetalhePageP
       apontamentos={apontamentos}
       anexos={anexos}
       avaliacao={avaliacao}
+      timerAberto={timerAberto}
     />
   )
 }
