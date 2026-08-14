@@ -83,7 +83,7 @@ export default async function ChamadoDetalhePage({ params }: PageProps) {
 
       <div className="flex flex-col gap-(--space-2)">
         <h2 className="text-sm font-medium text-foreground">Anexos</h2>
-        <AnexoList anexos={anexosDoTicket} />
+        <AnexoList anexos={anexosDoTicket} ticketNumero={ticket.numero} />
       </div>
 
       <ComentariosSection
