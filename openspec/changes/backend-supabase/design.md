@@ -6,7 +6,7 @@ Ver `proposal.md` — Why. O que molda o desenho técnico:
 - Várias páginas são Client Component **apenas** porque guardam estado local de protótipo (`useState` + `toast`). Ver o comentário em `app/(app)/chamados/[numero]/page.tsx:83-89`.
 - O desenho de produto (`docs/superpowers/specs/2026-08-04-help-desk-design.md`) já fixou stack (Next.js 15 + Supabase), modelo de dados, expediente 09:00–18:00 seg–sex e a exigência de RLS no Postgres em vez de checagem no front.
 - `lib/sla-display.ts` calcula severidade só para exibição e declara no comentário que o motor real mora em `lib/sla/`. Este change cria esse motor.
-- A conta Supabase do usuário não tem projeto para este produto — os três existentes são de outros sistemas. Um projeto novo será criado.
+- **Atualizado na implementação**: em vez de projeto novo, o help desk usa o projeto Supabase já existente `byteflow-pro` (`sa-east-1`), por decisão explícita do usuário — ele concentra todos os projetos pessoais ali. O projeto já serve outro sistema (POS: tabelas `clients`, `products`, `sales`, `stock_movements`, `store_settings`, `profiles`, `rate_limit_hits`, `audit_log`, `players`, `goals`, função `public.current_user_role()`). Isso muda duas decisões abaixo — ver "Isolamento em projeto Supabase compartilhado".
 
 ## Goals / Non-Goals
 
@@ -25,13 +25,21 @@ Ver `proposal.md` — Why. O que molda o desenho técnico:
 
 ## Decisions
 
-### Papel e empresa no token de sessão, não em subconsulta de policy
+### Isolamento em projeto Supabase compartilhado
 
-As policies precisam saber papel e empresa de quem consulta. Ler isso com subconsulta em `usuario` dentro de cada policy cria recursão (a policy de `usuario` consultaria `usuario`) e um `SELECT` extra por linha avaliada.
+`byteflow-pro` já serve um POS em produção. Duas consequências:
 
-**Decisão:** papel e `empresa_id` entram como claims no access token, via *custom access token hook* do Supabase Auth, e as policies leem do JWT por funções auxiliares `auth_papel()` e `auth_empresa_id()` marcadas `stable`. A tabela `usuario` continua sendo a fonte de verdade; o hook a consulta uma vez por emissão de token.
+**Schema dedicado `helpdesk`, não `public`.** Todas as tabelas do help desk (`empresa`, `usuario`, `ticket`, etc.) vivem no schema `helpdesk`, exposto à API via `db-schema` (o Supabase permite múltiplos schemas expostos). Isso elimina qualquer risco de colisão de nome com as tabelas do POS e deixa claro, ao olhar `list_tables`, o que pertence a qual sistema. `auth.users` continua compartilhado — é a única identidade de login do projeto — mas `helpdesk.usuario` é que guarda papel e vínculo de empresa, referenciando `auth.users.id`.
 
-*Alternativas:* (a) subconsulta em cada policy — recursão e custo por linha; (b) `SECURITY DEFINER` que consulta `usuario` — resolve recursão, mas mantém o custo e esconde a regra em função. Consequência aceita: mudança de papel só vale na próxima sessão — já registrado como cenário na spec `administracao`.
+*Alternativa descartada:* prefixar tabelas em `public` (`hd_ticket`, `hd_empresa`...) — funciona, mas mistura os dois domínios no mesmo namespace e obriga prefixo em toda referência.
+
+### Papel e empresa via função `SECURITY DEFINER`, não custom access token hook
+
+O *custom access token hook* do Supabase Auth é configuração única por projeto — ativá-lo mudaria o formato do token para o POS também, que não foi desenhado para isso. Alterar esse comportamento de um sistema em produção que não é objeto deste change é risco desproporcional ao ganho.
+
+**Decisão:** `helpdesk.auth_papel()` e `helpdesk.auth_empresa_id()` são funções `SECURITY DEFINER` de superfície mínima (sem `EXECUTE` para `authenticated`, chamadas apenas de dentro de policy), que leem `helpdesk.usuario` por `auth.uid()`, marcadas `stable`. `SECURITY DEFINER` ignora a RLS da própria tabela `usuario` ao ler, então não há recursão. O custo por linha é o mesmo de ler um claim de JWT — Postgres reavalia função `stable` uma vez por statement, não por linha.
+
+*Alternativas:* (a) custom access token hook — descartado pelo motivo acima; (b) subconsulta direta em cada policy — recursão, pois a policy de `helpdesk.usuario` consultaria `helpdesk.usuario`. Consequência aceita, igual ao desenho original: mudança de papel só vale na próxima leitura (sem cache de sessão longa), cenário já coberto na spec `administracao`.
 
 ### Server Actions com o cliente autenticado do usuário; `service_role` fora do request
 
@@ -91,10 +99,11 @@ Bucket `anexos` privado, caminho `{numero_do_chamado}/{uuid}-{nome}`. As policie
 - **Seed com senhas de teste versionadas** → usuários de seed são criados por script lendo senha de variável de ambiente; `.env.example` traz o nome da variável, nunca o valor.
 - **Remoção do mock quebra telas ainda não migradas** → `lib/mock/data.ts` só é apagado na última tarefa, depois que nenhum import restar; a verificação é um `grep` por `@/lib/mock/data` retornando vazio.
 - **Escopo grande em um único change** → a ordem das tarefas entrega valor verificável em etapas (auth funcionando, depois SLA testado, depois chamados persistindo), permitindo parar num ponto estável se necessário.
+- **Projeto compartilhado com o POS `byteflow-pro`** — uma migration ou policy mal escrita pode afetar dado ou usuário daquele sistema, que está em uso → schema `helpdesk` isolado (nunca `public`), nenhuma alteração em tabela, função ou configuração de auth pré-existente do POS; baseline de `get_advisors` capturado antes da primeira migration do help desk para diferenciar aviso novo de aviso pré-existente.
 
 ## Migration Plan
 
-1. Criar o projeto Supabase e registrar as variáveis em `.env.local`; `.env.example` versionado.
+1. Registrar as variáveis do projeto `byteflow-pro` (`dyutvxtrcchkqvykjmyy`) em `.env.local`; `.env.example` versionado.
 2. Migrations em ordem: enums e tabelas de cadastro → `ticket` e satélites → funções auxiliares de papel → policies de RLS → bucket e policies de Storage → funções de avaliação por token.
 3. Seed derivado de `lib/mock/data.ts` (2 empresas, analistas, ~20 chamados em status variados) mais os usuários de teste dos três papéis.
 4. Motor de SLA com testes verdes antes de qualquer tela ler o banco.

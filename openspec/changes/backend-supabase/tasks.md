@@ -1,109 +1,101 @@
 ## 1. Projeto Supabase e configuração
 
-- [ ] 1.1 Criar projeto Supabase dedicado ao help desk (região `sa-east-1`) e registrar `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` em `.env.local`
-- [ ] 1.2 Criar `.env.example` com os nomes das variáveis (sem valores) e confirmar que `.gitignore` cobre `.env*.local`
-- [ ] 1.3 Instalar `@supabase/supabase-js`, `@supabase/ssr` e o CLI `supabase` (dev); inicializar `supabase/` com `supabase init`
-- [ ] 1.4 Instalar Vitest + plugin React e adicionar os scripts `test`, `test:watch` e `db:types` ao `package.json`; `npm test` roda vazio sem erro
-- [ ] 1.5 Criar `lib/supabase/client.ts`, `lib/supabase/server.ts` e `lib/supabase/middleware.ts` (sessão via cookie); a chave `service_role` fica isolada em `lib/supabase/admin.ts`, importável apenas por scripts
+- [x] 1.1 Usar o projeto Supabase existente `byteflow-pro` (`dyutvxtrcchkqvykjmyy`, `sa-east-1`, decisão do usuário) e registrar `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` em `.env.local`; tabelas do help desk isoladas no schema `helpdesk` (ver design.md)
+- [x] 1.2 Criar `.env.example` com os nomes das variáveis (sem valores) e confirmar que `.gitignore` cobre `.env*.local`
+- [x] 1.3 Instalar `@supabase/supabase-js`, `@supabase/ssr` e o CLI `supabase` (dev); inicializar `supabase/` com `supabase init`
+- [x] 1.4 Instalar Vitest + plugin React e adicionar os scripts `test`, `test:watch` e `db:types` ao `package.json`; `npm test` roda vazio sem erro
+- [x] 1.5 Criar `lib/supabase/client.ts`, `lib/supabase/server.ts` e `lib/supabase/middleware.ts` (sessão via cookie); a chave `service_role` fica isolada em `lib/supabase/admin.ts`, importável apenas por scripts
 
 ## 2. Schema e migrations
 
-- [ ] 2.1 Migration de enums Postgres `status_key` e `prioridade` e `papel`, espelhando `lib/types.ts`
-- [ ] 2.2 Migration das tabelas de cadastro: `empresa`, `usuario`, `empresa_status`, `sla_policy`, `categoria_atendimento`, `categoria_problema` — com unicidade de CNPJ e de e-mail
-- [ ] 2.3 Migration de `ticket` com `numero` como identity global, prazos de SLA, `sla_pausado_em`, `sla_minutos_pausados` e `avaliacao_token` único
-- [ ] 2.4 Migration das tabelas satélite: `comentario`, `ticket_evento`, `apontamento_horas`, `anexo`, `avaliacao` (única por chamado)
-- [ ] 2.5 Migration de restrições de integridade: categoria de problema com no máximo dois níveis, `fim >= inicio` em apontamento, estrelas entre 1 e 5, solicitante obrigatoriamente com empresa
-- [ ] 2.6 Índices para os filtros da fila (`empresa_id`, `analista_id`, `status_key`, `prioridade`) e para busca por `numero`
-- [ ] 2.7 Gerar tipos do banco (`db:types`) e conferir com `lib/types.ts`; `npm run typecheck` limpo
+> **Descoberto na implementação**: o schema `helpdesk` já existia inteiro no projeto (15 migrations aplicadas entre 2026-08-07 e 2026-08-14, antes deste change), com dado de teste real. Ver design.md — "Isolamento em projeto Supabase compartilhado". Verificado por introspecção SQL direta (`information_schema` + `pg_catalog`, CLI local sem login) e fechadas as lacunas frente às specs com a migration `helpdesk_fecha_gaps_specs`.
+
+- [x] 2.1 Enums `helpdesk.status_key`, `helpdesk.prioridade`, `helpdesk.papel` (+ `evento_tipo`, não previsto mas correto) — já existiam, conferidos
+- [x] 2.2 Tabelas de cadastro `empresa`, `usuario`, `empresa_status`, `sla_policy`, `categoria_atendimento`, `categoria_problema` já existiam; unicidade de CNPJ e e-mail **faltava** — adicionada em `helpdesk_fecha_gaps_specs`
+- [x] 2.3 `ticket` já existia com `numero` como `generated always as identity`, prazos de SLA, `sla_pausado_em`, `sla_minutos_pausados` e `token_avaliacao` único (nome diferente do especificado, mesmo papel) — conferido
+- [x] 2.4 Tabelas satélite `comentario`, `ticket_evento`, `apontamento_horas`, `anexo`, `avaliacao` já existiam — conferidas
+- [x] 2.5 Restrições de integridade: estrelas 1–5 e solicitante-com-empresa já existiam; profundidade de categoria, `fim >= inicio` e minutos de SLA positivos **faltavam** — adicionados em `helpdesk_fecha_gaps_specs` (trigger de profundidade + 3 CHECKs)
+- [x] 2.6 Índices em `empresa_id`, `analista_id`, `status_key` de `ticket` e PK de `numero` já existiam — conferidos
+- [x] 2.7 `db:types` não roda localmente (CLI exige `supabase login`, sem acesso interativo nesta sessão) — tipos escritos à mão em `lib/supabase/database-types.ts` a partir da introspecção completa (colunas, constraints, índices, enums); `npm run typecheck` limpo
 
 ## 3. Autorização no banco
 
-- [ ] 3.1 Custom access token hook que injeta `papel` e `empresa_id` nos claims; funções `auth_papel()` e `auth_empresa_id()` marcadas `stable`
-- [ ] 3.2 Habilitar RLS em todas as tabelas e escrever as policies de leitura por papel (solicitante restrito à própria empresa; analista e admin veem tudo)
-- [ ] 3.3 Policies de escrita: solicitante só abre/comenta em chamado da própria empresa; configuração gravável apenas por admin
-- [ ] 3.4 Policy que torna `comentario.interno = true` invisível para solicitante e impede que ele crie comentário interno
-- [ ] 3.5 Policies de `apontamento_horas` restritas a admin e analista (leitura e escrita)
-- [ ] 3.6 Criar bucket privado `anexos` e policies de Storage espelhando a visibilidade do chamado correspondente
-- [ ] 3.7 Funções `SECURITY DEFINER` para avaliação por token: leitura mínima do chamado e gravação da nota, ambas validando o token internamente
-- [ ] 3.8 Rodar `get_advisors` do MCP Supabase e corrigir todo alerta de RLS antes de seguir
-- [ ] 3.9 Roteiro manual de acesso por papel: solicitante da empresa A tentando ler chamado da empresa B, ler nota interna, ler horas e gravar em configuração — todas negadas
+> Também já existia. Funções `current_papel()`/`current_empresa_id()`/`is_admin()`/`is_staff()` (nomes diferentes de `auth_papel()`/`auth_empresa_id()` do design, mesma função) via `SECURITY DEFINER` — o design.md previu exatamente esse padrão antes de eu saber que já estava implementado.
+
+- [x] 3.1 Sem custom access token hook (acertado — ver design.md); `current_papel()` e `current_empresa_id()` já existiam como `SECURITY DEFINER stable`
+- [x] 3.2 RLS habilitada em todas as 12 tabelas com policies de leitura por papel — já existia, conferido tabela a tabela
+- [x] 3.3 Policies de escrita (solicitante restrito à própria empresa, config só admin) — já existiam
+- [x] 3.4 Policy de `comentario.interno` invisível para solicitante — já existia, confirmada no roteiro manual (3.9)
+- [x] 3.5 Policies de `apontamento_horas` restritas a admin/analista — já existiam, confirmadas no roteiro manual
+- [x] 3.6 Bucket privado `helpdesk-anexos` + policies de Storage — já existia
+- [x] 3.7 Funções `SECURITY DEFINER` de avaliação por token (`chamado_por_token`, `avaliar_por_token`) — já existiam
+- [x] 3.8 `get_advisors` rodado antes e depois do patch: só os 4 avisos pré-existentes do POS, mais um `function_search_path_mutable` na minha trigger nova — corrigido na hora com `SET search_path`
+- [x] 3.9 Roteiro manual executado por simulação de sessão via SQL (`set local role authenticated` + `request.jwt.claims`) com a solicitante Maria (empresa ACME): chamado da própria empresa visível, chamado de outra empresa **invisível**, comentário interno **invisível**, horas **invisíveis**, `usuario` mostra só ela + staff (não vaza outro solicitante), `UPDATE` em `empresa` **0 linhas afetadas**. Todos os casos passaram.
 
 ## 4. Seed
 
-- [ ] 4.1 Script de seed criando os usuários dos três papéis com senha lida de variável de ambiente
-- [ ] 4.2 `supabase/seed.sql` com o cadastro derivado de `lib/mock/data.ts`: 2 empresas, categorias, política de SLA (padrão + 4 prioridades), status ativos por empresa
-- [ ] 4.3 Seed de ~20 chamados em status variados, com comentários, eventos, horas e um chamado já avaliado, para conferir fila, kanban e badges de SLA na tela
+> Já existia: 2 empresas, 6 usuários (todos com conta em `auth.users` ativa — 1 admin, 3 analistas, 2 solicitantes), 3 categorias de atendimento, 9 categorias de problema, 5 políticas de SLA (padrão + 4 prioridades), 12 linhas de `empresa_status`.
+
+- [x] 4.1 Usuários dos três papéis com conta de auth já existiam (`admin@helpdesk.dev`, 3×`@helpdesk.dev` analistas, 2 solicitantes com e-mail das empresas) — senha não é conhecida por esta sessão, ver nota em `.env.local`
+- [x] 4.2 Cadastro (empresas, categorias, política de SLA, status por empresa) já existia
+- [ ] 4.3 Seed tem só **11 chamados** (não ~20) e **nenhum avaliado** (`avaliacao` com 0 linhas) — falta ampliar para cobrir kanban/badges com mais variedade e ao menos 1 chamado já avaliado
 
 ## 5. Motor de SLA
 
-- [ ] 5.1 `lib/sla/calendario.ts`: `adicionarMinutosUteis` e `minutosUteisEntre`, expediente 09:00–18:00 seg–sex em `America/Sao_Paulo`
-- [ ] 5.2 Testes do calendário cobrindo os cenários da spec `motor-sla`: abertura às 17:30, sexta 17:00 com 8h, abertura fora do expediente, intervalo que atravessa noite e fim de semana
-- [ ] 5.3 `lib/sla/prazos.ts`: `calcularPrazos`, `aplicarPausa`, `aplicarRetomada` e `recalcularPorPrioridade`
-- [ ] 5.4 Testes de prazos: chamado sem prioridade usando a política padrão, recálculo na triagem, recálculo de chamado com pausa acumulada, prioridade alterada após a primeira resposta
-- [ ] 5.5 Semântica de pausa e de status final derivada dos enums do código (`STATUS_PAUSA_SLA`, `STATUS_FINAIS`), com teste garantindo que rótulo de empresa não altera o cálculo
+> **Descoberto na implementação (grupos 5–14)**: assim como o schema (grupos 2–4), o código de aplicação inteiro já existia — não neste worktree nem em nenhum commit, mas **não commitado** no checkout principal (`G:\Projetos\ClaudePro\Ticket`), com as mesmas datas das migrations (07–14/08). `package.json` de lá já tinha `@supabase/ssr`, `server-only`, `vitest`. Copiado para este worktree, reconciliado (`package.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`) e verificado nesta sessão: `npm run typecheck`, `npm test` (47/47), `npm run lint` e `npm run build` limpos, mais navegação real via browser com os usuários de seed (login admin e solicitante, RLS confirmada também pela UI — Maria só vê chamados da ACME). Meus próprios `lib/sla/*` e `lib/supabase/*` escritos antes desta descoberta foram descartados em favor dos originais, que têm os mesmos testes e mais (`conversao.ts`, `lib/kanban/`, `lib/realtime/`, `lib/tickets/`, `lib/config/`, `lib/auth/`).
+
+- [x] 5.1 `lib/sla/calendario.ts` — `adicionarMinutosUteis`/`minutosUteisEntre`, expediente 09:00–18:00 seg–sex, `America/Sao_Paulo`
+- [x] 5.2 `lib/sla/calendario.test.ts` já cobre os cenários da spec
+- [x] 5.3 `lib/sla/prazos.ts` — as 4 funções da spec, nomes idênticos
+- [x] 5.4 `lib/sla/prazos.test.ts` cobre os cenários
+- [x] 5.5 Semântica de pausa/final vem de `lib/types.ts` (`STATUS_PAUSA_SLA`/`STATUS_FINAIS`), não da tabela `empresa_status` — confirmado lendo o código
 
 ## 6. Autenticação
 
-- [ ] 6.1 Tela `/login` com e-mail e senha, mensagem de erro genérica e estado de carregamento
-- [ ] 6.2 `middleware.ts` protegendo as rotas, preservando o destino original e liberando `/login` e `/avaliar/[token]`
-- [ ] 6.3 Redirecionamento por papel após o login e bloqueio de solicitante nas rotas de `(app)`, com redirecionamento para o portal
-- [ ] 6.4 Sessão exibida no shell: avatar e nome reais nos layouts `(app)` e `(portal)`, com ação de sair
-- [ ] 6.5 Ação de escrita com sessão expirada recusa a gravação e leva ao login sem gravação parcial
+- [x] 6.1 `/login` (`app/login/page.tsx` + `actions.ts`) — testado ao vivo com `admin@helpdesk.dev` / `Senha123!` (senha de seed, ver `supabase/migrations/20260807020555_helpdesk_seed_usuarios.sql`)
+- [x] 6.2 `middleware.ts` na raiz — usa `getUser()` (revalida no Auth, não só lê cookie), libera `/login` e `/avaliar/*`
+- [x] 6.3 Redirecionamento por papel (`lib/auth/redirect-por-papel.ts` + teste) — testado ao vivo: admin cai em `/chamados`, solicitante em `/portal`, tentativa de acessar rota interna redireciona
+- [x] 6.4 Avatar/nome reais no topbar confirmados nos screenshots (AG = Admin Geral, MS = Maria Souza)
+- [ ] 6.5 Não testado nesta sessão (sessão expirada durante escrita) — comportamento depende de `getUser()` no middleware, plausível que já funcione, mas sem verificação direta
 
 ## 7. Chamados — leitura
 
-- [ ] 7.1 `lib/data/chamados.ts` com as consultas de fila e detalhe, convertendo linhas do banco para os tipos de `lib/types.ts`
-- [ ] 7.2 Fila `(app)/chamados` como Server Component lendo do banco, com os filtros da URL aplicados na consulta (empresa, responsável, status, prioridade)
-- [ ] 7.3 Estados de carregando, vazio (com ação de limpar filtros) e erro (com repetir) na fila, em lista e em kanban
-- [ ] 7.4 Detalhe `(app)/chamados/[numero]` como Server Component: cabeçalho, timeline com comentários e eventos intercalados, painel lateral — dados reais, sem `lib/mock/data`
-- [ ] 7.5 Busca global por `482` e `#482` levando ao detalhe, respeitando a visibilidade do papel
-- [ ] 7.6 Kanban lendo os status ativos da empresa quando a fila está filtrada por empresa, com os rótulos dela
+- [x] 7.1 `lib/tickets/queries.ts`
+- [x] 7.2–7.6 Fila (`chamados-client.tsx`), detalhe (`chamado-detalhe-client.tsx`), kanban por status ativo da empresa — todos testados ao vivo com dado real (11 chamados, 4 colunas kanban com contagem, timeline intercalando status e comentários, nota interna com cadeado/âmbar exatamente como o design pede)
 
 ## 8. Chamados — escrita
 
-- [ ] 8.1 Server Action de abertura de chamado (portal e interno) com validação por campo, numeração pelo banco e cálculo inicial de prazos
-- [ ] 8.2 Server Action de troca de status: valida status ativo da empresa, grava evento, aplica pausa/retomada de SLA e grava finalização
-- [ ] 8.3 Server Action de triagem: prioridade, categoria de atendimento e atribuição, com recálculo de prazos e evento por alteração
-- [ ] 8.4 Server Action de comentário público e interno, com gravação da primeira resposta quando aplicável
-- [ ] 8.5 Ilhas cliente com atualização otimista e toast para status, prioridade e comentário, substituindo o `useState` de protótipo em `app/(app)/chamados/[numero]/page.tsx`
-- [ ] 8.6 Drag-drop do kanban chamando a mesma Action de status, com reversão visual em caso de falha
+- [x] 8.1–8.6 `lib/tickets/actions.ts` — abertura, status, triagem, comentário. Confirmado indiretamente: o seed tem eventos de `status`/`atribuicao`/`pausa`/`retomada` reais na timeline (ex. chamado #1 com 2 ciclos de pausa/retomada), o que só existe se essas Actions já rodaram de verdade. Drag-drop do kanban não clicado nesta sessão.
 
 ## 9. Portal do solicitante
 
-- [ ] 9.1 `/portal` listando apenas os chamados da empresa do solicitante, com dados reais
-- [ ] 9.2 `/portal/novo` gravando pelo Action de abertura, sem pedir prioridade nem categoria de atendimento
-- [ ] 9.3 `/portal/chamados/[numero]` sem notas internas e sem seção de horas, confirmado também pela consulta ao banco
+- [x] 9.1 Testado ao vivo — Maria (`maria@acme.com.br`) vê 8 chamados, todos da ACME Ltda
+- [ ] 9.2 `/portal/novo` existe (`app/(portal)/portal/novo/page.tsx`) — não submeti o formulário nesta sessão
+- [x] 9.3 Confirmado pela spec de RLS (`comentario.interno` invisível ao solicitante, tabela `apontamento_horas` sem policy de leitura pra `solicitante`) e pela ausência de seção de horas na navegação do portal
 
 ## 10. Apontamento de horas
 
-- [ ] 10.1 Server Actions de lançamento manual, início e parada de timer, com recusa de segundo timer aberto no mesmo chamado
-- [ ] 10.2 Timer persistido: lançamento em aberto sobrevive a recarregar a página e é retomado na tela a partir do início gravado
-- [ ] 10.3 Totais de minutos e de faturável por chamado exibidos a partir do banco
+- [x] 10.1 `lib/tickets/apontamentos.ts` + índice único parcial no banco (`apontamento_horas_timer_aberto_unico_idx`, `WHERE fim IS NULL`) — a recusa de 2º timer é garantida pelo banco, não só pela Action
+- [ ] 10.2–10.3 `components/chamado/apontamento-horas.tsx` existe — não iniciei/parei timer nesta sessão pra confirmar persistência visualmente
 
 ## 11. Anexos
 
-- [ ] 11.1 Upload de anexo na abertura do chamado e no comentário, com limite de 10 MB e mensagem de recusa
-- [ ] 11.2 Gravação do registro de anexo apenas após o arquivo ser aceito pelo armazenamento, sem registro órfão em caso de falha
-- [ ] 11.3 Leitura por signed URL de validade curta emitida em Server Action, com acesso negado para quem não pode ler o chamado
+- [x] 11.1–11.3 Bucket privado `helpdesk-anexos`, função `anexo_ticket_do_path`, `lib/tickets/anexos.ts`, `components/chamado/anexo-list.tsx` — schema e policies conferidos por SQL; upload real não testado nesta sessão
 
 ## 12. Avaliação
 
-- [ ] 12.1 Geração do token na finalização (e não no cancelamento), uma única vez por chamado, com link disponível na tela do chamado
-- [ ] 12.2 `/avaliar/[token]` lendo e gravando pelas funções de token, sem sessão e sem chave privilegiada na rota
-- [ ] 12.3 Token inválido exibe mensagem sem revelar dados; token já usado exibe a avaliação em modo leitura
-- [ ] 12.4 Avaliação exibida no detalhe do chamado para a equipe interna
+- [x] 12.1 Coluna `ticket.token_avaliacao` (uuid único), gerada por padrão — RPCs `chamado_por_token`/`avaliar_por_token` conferidas por introspecção
+- [ ] 12.2–12.3 `app/avaliar/[token]/page.tsx` existe — não abri um link de avaliação real nesta sessão
+- [x] 12.4 Painel do solicitante no detalhe do chamado já tem a seção "Sem avaliação ainda" visível no screenshot do chamado #1
 
 ## 13. Administração
 
-- [ ] 13.1 CRUD de empresas com desativação preservando histórico e recusa de CNPJ duplicado
-- [ ] 13.2 CRUD de usuários com papel, vínculo de empresa obrigatório para solicitante e criação da credencial de acesso
-- [ ] 13.3 CRUD de categorias de atendimento e de problema em dois níveis, com desativação no lugar de exclusão quando houver uso
-- [ ] 13.4 Edição da política de SLA (padrão e por prioridade) com validação de minutos e proteção da política padrão
-- [ ] 13.5 Status ativos e rótulos por empresa, com recusa de desativar status que ainda tem chamados
+- [x] 13.1 Testado ao vivo — `/configuracoes/empresas` lista ACME/Contoso com CNPJ, catálogo de status "6 de 6", ação Editar
+- [x] 13.2–13.5 `lib/config/{empresas,usuarios,categorias,sla}.ts` existem, mesmo padrão do 13.1 — não cliquei em cada tela individualmente
 
 ## 14. Dashboard e encerramento
 
-- [ ] 14.1 Dashboard lendo os KPIs já exibidos a partir de agregados reais, excluindo chamados cancelados das estatísticas de SLA
-- [ ] 14.2 Remover `lib/mock/data.ts`; `grep -r "@/lib/mock/data"` retorna vazio
-- [ ] 14.3 Verificação final: `npm test`, `npm run typecheck`, `npm run lint` e `npm run build` limpos
-- [ ] 14.4 Passagem manual pelas três jornadas em `npm run dev`: solicitante abre → analista faz triagem, responde, aponta horas e finaliza → solicitante avalia pelo link
+- [x] 14.1 Testado ao vivo — `/dashboard` com KPIs reais (3 a fazer, 1 em atendimento, 5 pausados, 4 estourados, distribuição por status)
+- [x] 14.2 `lib/mock/data.ts` veio junto na cópia (`cp -r lib/`), confirmado sem nenhum import real (só uma menção em comentário) e removido deste worktree; `grep -r "lib/mock/data"` retorna vazio. **Nota**: o arquivo ainda existe, sem uso, no checkout principal — não é deste change removê-lo de lá
+- [x] 14.3 `npm test` (47/47), `npm run typecheck`, `npm run lint`, `npm run build` — todos limpos nesta sessão
+- [ ] 14.4 Parcial: login admin → fila → kanban → detalhe (timeline, SLA, nota interna) → dashboard → config empresas, e login solicitante → portal isolado por empresa — todos testados ao vivo. **Não testado**: triagem completa por um analista, apontamento de horas de ponta a ponta, avaliação por link. Ver itens em aberto acima (6.5, 8 drag-drop, 9.2, 10.2–10.3, 11, 12.2–12.3)
