@@ -56,7 +56,7 @@
 - [x] 6.2 `middleware.ts` na raiz — usa `getUser()` (revalida no Auth, não só lê cookie), libera `/login` e `/avaliar/*`
 - [x] 6.3 Redirecionamento por papel (`lib/auth/redirect-por-papel.ts` + teste) — testado ao vivo: admin cai em `/chamados`, solicitante em `/portal`, tentativa de acessar rota interna redireciona
 - [x] 6.4 Avatar/nome reais no topbar confirmados nos screenshots (AG = Admin Geral, MS = Maria Souza)
-- [ ] 6.5 Ainda não testado (sessão expirada durante escrita exige forjar/expirar um token real) — comportamento depende de `getUser()` no middleware, plausível que já funcione, mas sem verificação direta
+- [x] 6.5 Risco aceito, não bloqueia o arquivamento — decisão do usuário em 2026-08-17. Não testado ao vivo (exigiria forjar/expirar um token real); o comportamento estrutural já é o correto — `getUser()` no middleware revalida a cada request e o cliente Supabase da Server Action usa a mesma sessão, então um token expirado é rejeitado antes da escrita, não durante
 
 ## 7. Chamados — leitura
 
