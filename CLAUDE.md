@@ -134,11 +134,21 @@ arquivos gerados, ou a suíte inflar para bem mais que os 7 arquivos de teste re
 `next.config.ts` fixa `turbopack.root` pelo mesmo motivo: sem isso o Next infere a raiz
 errada e passa a observar a árvore inteira do repositório pai.
 
+### Relatórios (fase 8)
+
+`lib/relatorios/` — módulos puros, mesma linha de `lib/sla/`. `metricas.ts` agrupa
+tickets por analista/empresa (total, abertos, finalizados, tempo médio de resposta e
+solução em minutos úteis via `lib/sla/calendario`, % de cumprimento de SLA — cancelado
+fica fora da estatística). `csv.ts` gera o CSV como string pura (sem BOM: quem grava o
+Blob prefixa `﻿`, não este módulo). Renderizado em `RelatorioTabela`
+(`components/dashboard/`) e no botão "Exportar CSV" do dashboard.
+
 ## Roadmap
 
-Fases 0–6 entregues (scaffold/auth, motor de SLA, CRUD + timeline, Kanban + realtime,
-apontamento de horas, anexos, avaliação por token). Pendentes: **7** — e-mail
-transacional e job de alerta de SLA; **8** — dashboard, relatórios e exportação CSV.
+Fases 0–6 e 8 entregues (scaffold/auth, motor de SLA, CRUD + timeline, Kanban +
+realtime, apontamento de horas, anexos, avaliação por token, dashboard/relatórios/CSV).
+Pendente: **7** — e-mail transacional e job de alerta de SLA (decisão de provedor em
+aberto — Resend cogitado, sem conta criada ainda).
 
 O desenho validado está em `docs/superpowers/specs/2026-08-04-help-desk-design.md`
 (decisões fechadas, modelo de dados, responsividade em 375/768/1024/1440). Mudanças
