@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:types": "supabase gen types typescript --project-id dyutvxtrcchkqvykjmyy --schema helpdesk > lib/supabase/database-types.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -36,8 +38,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
+    "supabase": "^2.114.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
