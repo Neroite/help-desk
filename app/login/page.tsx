@@ -1,18 +1,11 @@
-import {
-  BarChart3,
-  Bell,
-  Kanban,
-  Lock,
-  Mail,
-  Ticket,
-  TimerReset,
-} from "lucide-react"
+import { BarChart3, Kanban, Lock, Mail, Ticket, TimerReset } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { login } from "./actions"
+import { LoginIconCluster } from "./login-icon-cluster"
 
 const DESTAQUES = [
   { icon: TimerReset, texto: "SLA calculado automaticamente" },
@@ -106,24 +99,7 @@ export default async function LoginPage({
           className="absolute -bottom-32 -left-10 size-96 rounded-full bg-primary/10 blur-3xl"
         />
 
-        <div className="relative flex size-72 items-center justify-center">
-          <div className="flex size-44 items-center justify-center rounded-[2.5rem] border border-primary/20 bg-surface/80 shadow-lg backdrop-blur-sm">
-            <Ticket className="size-16 text-primary" aria-hidden="true" />
-          </div>
-
-          <div className="absolute top-2 left-0 flex size-14 items-center justify-center rounded-2xl border border-border bg-surface shadow-md">
-            <Bell className="size-6 text-primary" aria-hidden="true" />
-          </div>
-          <div className="absolute right-0 bottom-8 flex size-16 items-center justify-center rounded-2xl border border-border bg-surface shadow-md">
-            <TimerReset className="size-7 text-primary" aria-hidden="true" />
-          </div>
-          <div className="absolute top-10 -right-6 flex size-12 items-center justify-center rounded-2xl border border-border bg-surface shadow-md">
-            <Kanban className="size-5 text-primary" aria-hidden="true" />
-          </div>
-          <div className="absolute bottom-0 left-6 flex size-12 items-center justify-center rounded-2xl border border-border bg-surface shadow-md">
-            <BarChart3 className="size-5 text-primary" aria-hidden="true" />
-          </div>
-        </div>
+        <LoginIconCluster />
 
         <div className="relative flex max-w-sm flex-col items-center gap-4 text-center">
           <h2 className="text-3xl font-semibold text-balance text-foreground">
