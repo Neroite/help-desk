@@ -147,8 +147,11 @@ Blob prefixa `﻿`, não este módulo). Renderizado em `RelatorioTabela`
 
 Fases 0–6 e 8 entregues (scaffold/auth, motor de SLA, CRUD + timeline, Kanban +
 realtime, apontamento de horas, anexos, avaliação por token, dashboard/relatórios/CSV).
-Pendente: **7** — e-mail transacional e job de alerta de SLA (decisão de provedor em
-aberto — Resend cogitado, sem conta criada ainda).
+
+Fase 7 (e-mail transacional + job de alerta de SLA) **adiada por decisão do usuário**
+(2026-08-17) — não é trabalho ativo nem pendência a resolver agora. Retomar só quando
+pedido explicitamente; não iniciar por conta própria. Se retomada, a decisão de
+provedor (Resend cogitado) e a conta/API key ainda estarão em aberto.
 
 O desenho validado está em `docs/superpowers/specs/2026-08-04-help-desk-design.md`
 (decisões fechadas, modelo de dados, responsividade em 375/768/1024/1440). Mudanças
