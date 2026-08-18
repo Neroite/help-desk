@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commits — regra obrigatória
+
+**Proibido commitar (ou dar push) sem avisar antes.** Faça as alterações pedidas e
+pare por aí — não rode `git commit`/`git push` por conta própria durante a tarefa.
+Ao final do trabalho, monte **um único commit geral** com tudo que mudou na sessão e
+peça permissão explícita antes de executá-lo. Uma aprovação não vale para o próximo
+commit: pergunte de novo toda vez.
+
 ## Comandos
 
 ```bash
