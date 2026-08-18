@@ -1,27 +1,30 @@
 ## Purpose
 
-Garante que o Kanban de chamados só permita movimentações consistentes com um atendimento real (técnico atribuído) e destaca, sem esconder o status real, quais chamados abertos esperam resposta do analista.
+Garante que o Kanban de chamados seja uma visualização confiável do fluxo de atendimento — sem oferecer, por si só, um mecanismo de mudança de status — e destaca, sem esconder o status real, quais chamados abertos esperam resposta do analista.
 
 ## Requirements
 
-### Requirement: Movimentação exige técnico atribuído
-O sistema SHALL exigir um técnico atribuído antes de permitir que um chamado saia da coluna "A fazer" para qualquer status diferente de "Cancelado", tanto na interface quanto na ação de servidor que efetiva a mudança.
+### Requirement: Kanban é somente visualização
+O Kanban SHALL exibir os chamados sem oferecer nenhum mecanismo de mudança de status a partir dele — nem arrastar card entre colunas, nem menu de mudança rápida no card. A única interação do card é a navegação: um clique leva ao detalhe do chamado, onde o status pode ser alterado.
 
-#### Scenario: Mover chamado sem técnico
-- **WHEN** um analista arrasta, no Kanban, um chamado sem técnico atribuído para uma coluna de status diferente de "Cancelado"
-- **THEN** o sistema bloqueia o movimento e abre um diálogo de atribuição de técnico, sem alterar o status do chamado
+#### Scenario: Arrastar não move o chamado
+- **WHEN** um analista tenta arrastar um card do Kanban para outra coluna
+- **THEN** o chamado permanece na coluna original e nenhuma chamada de mudança de status é feita
 
-#### Scenario: Atribuir técnico completa o movimento
-- **WHEN** o analista escolhe um técnico no diálogo de atribuição e confirma
-- **THEN** o sistema atribui o técnico ao chamado e move o chamado para o status de destino original do arrasto
+#### Scenario: Card não expõe menu de mudança de status
+- **WHEN** um card do Kanban é exibido, em qualquer coluna
+- **THEN** não há nenhum controle nele (menu, botão) que altere o status do chamado
 
-#### Scenario: Mover para Cancelado não exige técnico
-- **WHEN** um chamado sem técnico atribuído é movido para o status "Cancelado"
-- **THEN** o sistema efetiva a mudança normalmente, sem exigir atribuição
+#### Scenario: Clique navega para o detalhe
+- **WHEN** um analista clica em um card do Kanban
+- **THEN** o sistema navega para o detalhe do chamado, onde o status pode ser alterado
 
-#### Scenario: Servidor rejeita contorno da regra
-- **WHEN** uma requisição de mudança de status chega ao servidor para um chamado sem técnico atribuído, com destino diferente de "Cancelado"
-- **THEN** o servidor rejeita a operação com um erro e o status do chamado permanece inalterado
+### Requirement: Card do Kanban exibe apenas os campos de referência
+O card do Kanban SHALL exibir apenas: número do chamado e nome do cliente, avatar do operador responsável, título do chamado em uma linha, indicadores de SLA de resposta e de solução, e a data de criação — sem exibir prioridade, nome textual do analista ou nome do solicitante.
+
+#### Scenario: Card enxuto
+- **WHEN** um card é exibido em qualquer coluna do Kanban
+- **THEN** ele mostra número, cliente, avatar do operador, título, os dois indicadores de SLA e a data, e não mostra um badge de prioridade nem o nome por extenso do analista ou do solicitante
 
 ### Requirement: Coluna derivada "Última interação do cliente"
 O Kanban SHALL exibir, no lugar da coluna "Cancelado", uma coluna derivada que lista chamados não finalizados cuja última interação pública foi do solicitante, sem removê-los de sua coluna de status real e sem aceitar que cards sejam soltos nela.

@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react"
 
 import { TicketRow } from "@/components/chamado/ticket-row"
+import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { StatusKey, Ticket } from "@/lib/types"
@@ -81,7 +82,7 @@ export function TicketTable({
   const todosSelecionados = tickets.length > 0 && tickets.every((t) => selected.has(t.numero))
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <Card className="overflow-x-auto p-0 shadow-none">
       <Table>
         <TableHeader className="sticky top-0 z-20 bg-surface">
           <TableRow className="hover:bg-transparent">
@@ -151,6 +152,6 @@ export function TicketTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </Card>
   )
 }

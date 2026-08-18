@@ -3,6 +3,7 @@
 import {
   AlertOctagon,
   AlertTriangle,
+  Download,
   MessageSquareReply,
   Pause,
   Tag,
@@ -11,10 +12,14 @@ import {
 } from "lucide-react"
 
 import { KpiTile } from "@/components/dashboard/kpi-tile"
+import { RelatorioTabela } from "@/components/dashboard/relatorio-tabela"
+import { Button } from "@/components/ui/button"
 import { aguardandoAnalista } from "@/lib/kanban/colunas"
+import { chamadosParaCsv } from "@/lib/relatorios/csv"
+import { metricasPorAnalista, metricasPorEmpresa } from "@/lib/relatorios/metricas"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
-import { calcularSeveridade } from "@/lib/sla-display"
+import { calcularProgressoSla } from "@/lib/sla-display"
 import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_META } from "@/lib/status"
 import { STATUS_FINAIS, STATUS_KEYS, type StatusKey, type Ticket } from "@/lib/types"
@@ -25,7 +30,7 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
   // senão o servidor calcula com um instante diferente do cliente e gera
   // mismatch de hidratação — ver lib/sla-clock.tsx.
   const agora = useSlaClock()
-  const { usuarioAtual } = useReferenceData()
+  const { usuarioAtual, usuarios, empresas, empresaPorId, usuarioPorId } = useReferenceData()
 
   // KPIs derivam direto de `tickets` (prop) a cada render — sem estado
   // local pra resincronizar, só precisamos que o router.refresh() aconteça.
@@ -54,22 +59,52 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
   // useEffect do SlaClockProvider atualiza isso logo em seguida.
   const naoFinalizados = agora ? tickets.filter((t) => !STATUS_FINAIS.includes(t.statusKey)) : []
   const slaEstourado = agora
-    ? naoFinalizados.filter(
-        (t) => calcularSeveridade(t.slaSolucaoVenceEm, t.statusKey, agora) === "estourado"
-      ).length
+    ? naoFinalizados.filter((t) => calcularProgressoSla(t, "solucao", agora).severidade === "estourado").length
     : 0
   const slaPrestesAEstourar = agora
     ? naoFinalizados.filter((t) => {
-        const severidade = calcularSeveridade(t.slaSolucaoVenceEm, t.statusKey, agora)
+        const { severidade } = calcularProgressoSla(t, "solucao", agora)
         return severidade === "critico" || severidade === "atencao"
       }).length
     : 0
 
   const totalGeral = tickets.length
 
+  const metricasAnalista = metricasPorAnalista(
+    tickets,
+    usuarios.filter((u) => u.papel === "analista" || u.papel === "admin")
+  )
+  const metricasEmpresa = metricasPorEmpresa(tickets, empresas)
+
+  function exportarCsv() {
+    const csv = chamadosParaCsv(tickets, {
+      nomeEmpresa: (id) => empresaPorId(id)?.nome ?? "—",
+      nomeUsuario: (id) => usuarioPorId(id)?.nome ?? "Não atribuído",
+    })
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `chamados-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex flex-col gap-(--space-6)">
-      <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="cursor-pointer"
+          onClick={exportarCsv}
+        >
+          <Download className="size-4" data-icon="inline-start" />
+          Exportar CSV
+        </Button>
+      </div>
 
       <section className="flex flex-col gap-(--space-2)">
         <h2 className="text-sm font-semibold text-foreground">Tickets</h2>
@@ -200,6 +235,12 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
           })}
         </div>
       </div>
+
+      <section className="flex flex-col gap-(--space-4)">
+        <h2 className="text-sm font-semibold text-foreground">Relatórios</h2>
+        <RelatorioTabela titulo="Por analista" colunaChave="Analista" linhas={metricasAnalista} />
+        <RelatorioTabela titulo="Por empresa" colunaChave="Empresa" linhas={metricasEmpresa} />
+      </section>
     </div>
   )
 }

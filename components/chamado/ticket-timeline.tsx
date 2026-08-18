@@ -2,12 +2,15 @@
 
 import {
   Flag,
+  GitMerge,
   Lock,
+  Network,
   Pencil,
   PlusCircle,
   Tag,
   Trash2,
   UserPlus,
+  Users,
   type LucideIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -98,6 +101,16 @@ function descreverEvento(
       return `${autor} retomou o atendimento`
     case "categoria":
       return `${autor} atualizou as categorias`
+    case "filho":
+      return `${autor} criou o chamado filho #${evento.para}`
+    case "conciliacao":
+      return `${autor} conciliou o chamado #${evento.para} como duplicado`
+    case "contato":
+      return evento.corpo ?? `${autor} adicionou um contato ao chamado`
+    case "mesa": {
+      const de = evento.de
+      return de ? `Mesa: ${de} → ${evento.para}` : `Mesa: ${evento.para}`
+    }
   }
 }
 
@@ -119,6 +132,14 @@ function iconeEvento(evento: TicketEvento): LucideIcon {
       return STATUS_META.em_andamento.icon
     case "categoria":
       return Tag
+    case "filho":
+      return Network
+    case "conciliacao":
+      return GitMerge
+    case "contato":
+      return Users
+    case "mesa":
+      return Tag
   }
 }
 
@@ -138,7 +159,12 @@ function corEvento(evento: TicketEvento): string {
       return "primary"
     case "atribuicao":
     case "categoria":
+    case "filho":
+    case "contato":
+    case "mesa":
       return "secondary"
+    case "conciliacao":
+      return "status-cancelado"
     // Preserva "roxo = evento administrativo" de antes, agora só aqui.
     case "prioridade":
       return "status-pausado"

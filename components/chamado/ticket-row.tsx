@@ -121,18 +121,8 @@ export function TicketRow({
 
       <TableCell className="min-w-48">
         <div className="flex flex-col gap-1.5">
-          <SlaProgress
-            rotulo="Resposta"
-            venceEm={ticket.slaRespostaVenceEm}
-            criadoEm={ticket.criadoEm}
-            statusKey={ticket.statusKey}
-          />
-          <SlaProgress
-            rotulo="Solução"
-            venceEm={ticket.slaSolucaoVenceEm}
-            criadoEm={ticket.criadoEm}
-            statusKey={ticket.statusKey}
-          />
+          <SlaProgress rotulo="Resposta" ticket={ticket} tipo="resposta" />
+          <SlaProgress rotulo="Solução" ticket={ticket} tipo="solucao" />
         </div>
       </TableCell>
 

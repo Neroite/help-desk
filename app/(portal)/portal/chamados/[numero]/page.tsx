@@ -67,7 +67,7 @@ export default async function ChamadoDetalhePage({ params }: PageProps) {
         <h1 className="text-xl font-semibold text-foreground">{ticket.titulo}</h1>
         <p className="text-sm text-muted-foreground">{ticket.descricao}</p>
         <div>
-          <SlaBadge rotulo="Solução" venceEm={ticket.slaSolucaoVenceEm} statusKey={ticket.statusKey} />
+          <SlaBadge rotulo="Solução" ticket={ticket} tipo="solucao" />
         </div>
       </div>
 

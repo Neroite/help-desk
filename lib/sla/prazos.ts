@@ -34,7 +34,9 @@ export function aplicarPausa(ticket: TicketSlaState, agora: Date): TicketSlaStat
 export function aplicarRetomada(ticket: TicketSlaState, agora: Date): TicketSlaState {
   if (!ticket.slaPausadoEm) return ticket
 
-  const minutosParados = minutosUteisEntre(ticket.slaPausadoEm, agora)
+  // Arredondado: slaMinutosPausados persiste em coluna `int` no banco, e
+  // minutosUteisEntre devolve fração de minuto (ms / 60_000).
+  const minutosParados = Math.round(minutosUteisEntre(ticket.slaPausadoEm, agora))
 
   return {
     ...ticket,

@@ -9,11 +9,16 @@ import type {
   CategoriaProblema,
   Comentario,
   Empresa,
+  MesaTrabalho,
   Prioridade,
+  Setor,
   SlaPolicy,
   StatusKey,
   Ticket,
+  TicketContato,
   TicketEvento,
+  TicketFilho,
+  TicketVisualizacao,
   Usuario,
 } from "@/lib/types"
 
@@ -38,6 +43,9 @@ interface TicketRow {
   sla_minutos_pausados: number
   ultima_interacao_em: string | null
   ultima_interacao_papel: Ticket["ultimaInteracaoPapel"]
+  pai_id: number | null
+  conciliado_no_id: number | null
+  mesa_id: string | null
 }
 
 function mapTicket(row: TicketRow): Ticket {
@@ -61,6 +69,9 @@ function mapTicket(row: TicketRow): Ticket {
     slaMinutosPausados: row.sla_minutos_pausados,
     ultimaInteracaoEm: row.ultima_interacao_em,
     ultimaInteracaoPapel: row.ultima_interacao_papel,
+    paiId: row.pai_id,
+    conciliadoNoId: row.conciliado_no_id,
+    mesaId: row.mesa_id,
   }
 }
 
@@ -237,7 +248,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("usuario")
-    .select("id, nome, email, papel, empresa_id")
+    .select("id, nome, email, papel, empresa_id, setor_id")
     .order("nome")
   if (error) throw error
   return (data ?? []).map((u) => ({
@@ -246,6 +257,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
     email: u.email,
     papel: u.papel,
     empresaId: u.empresa_id,
+    setorId: u.setor_id,
     avatarIniciais: iniciais(u.nome),
   }))
 }
@@ -259,7 +271,7 @@ export async function buscarUsuarioAtual(): Promise<Usuario | null> {
 
   const { data, error } = await supabase
     .from("usuario")
-    .select("id, nome, email, papel, empresa_id")
+    .select("id, nome, email, papel, empresa_id, setor_id")
     .eq("id", user.id)
     .maybeSingle()
   if (error) throw error
@@ -270,6 +282,7 @@ export async function buscarUsuarioAtual(): Promise<Usuario | null> {
     email: data.email,
     papel: data.papel,
     empresaId: data.empresa_id,
+    setorId: data.setor_id,
     avatarIniciais: iniciais(data.nome),
   }
 }
@@ -289,6 +302,60 @@ export async function listarCategoriasProblema(): Promise<CategoriaProblema[]> {
     .order("nome")
   if (error) throw error
   return (data ?? []).map((c) => ({ id: c.id, nome: c.nome, paiId: c.pai_id }))
+}
+
+export async function listarTicketsFilho(paiNumero: number): Promise<TicketFilho[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("ticket")
+    .select("numero, titulo, status_key")
+    .eq("pai_id", paiNumero)
+    .order("numero")
+  if (error) throw error
+  return (data ?? []).map((t) => ({ numero: t.numero, titulo: t.titulo, statusKey: t.status_key }))
+}
+
+export async function buscarContatos(ticketNumero: number): Promise<TicketContato[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("ticket_contato")
+    .select("ticket_id, usuario_id, criado_em, adicionado_por")
+    .eq("ticket_id", ticketNumero)
+  if (error) throw error
+  return (data ?? []).map((c) => ({
+    ticketId: c.ticket_id,
+    usuarioId: c.usuario_id,
+    criadoEm: c.criado_em,
+    adicionadoPor: c.adicionado_por,
+  }))
+}
+
+export async function buscarVisualizacoes(ticketNumero: number): Promise<TicketVisualizacao[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("ticket_visualizacao")
+    .select("ticket_id, usuario_id, visto_em")
+    .eq("ticket_id", ticketNumero)
+    .order("visto_em", { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((v) => ({ ticketId: v.ticket_id, usuarioId: v.usuario_id, vistoEm: v.visto_em }))
+}
+
+export async function listarMesasTrabalho(): Promise<MesaTrabalho[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("mesa_trabalho")
+    .select("id, nome, ativo")
+    .order("nome")
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listarSetores(): Promise<Setor[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.from("setor").select("id, nome, empresa_id").order("nome")
+  if (error) throw error
+  return (data ?? []).map((s) => ({ id: s.id, nome: s.nome, empresaId: s.empresa_id }))
 }
 
 export async function listarSlaPolicies(): Promise<SlaPolicy[]> {
