@@ -19,7 +19,7 @@ import { chamadosParaCsv } from "@/lib/relatorios/csv"
 import { metricasPorAnalista, metricasPorEmpresa } from "@/lib/relatorios/metricas"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
-import { calcularSeveridade } from "@/lib/sla-display"
+import { calcularProgressoSla } from "@/lib/sla-display"
 import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_META } from "@/lib/status"
 import { STATUS_FINAIS, STATUS_KEYS, type StatusKey, type Ticket } from "@/lib/types"
@@ -59,13 +59,11 @@ export function DashboardClient({ tickets }: { tickets: Ticket[] }) {
   // useEffect do SlaClockProvider atualiza isso logo em seguida.
   const naoFinalizados = agora ? tickets.filter((t) => !STATUS_FINAIS.includes(t.statusKey)) : []
   const slaEstourado = agora
-    ? naoFinalizados.filter(
-        (t) => calcularSeveridade(t.slaSolucaoVenceEm, t.statusKey, agora) === "estourado"
-      ).length
+    ? naoFinalizados.filter((t) => calcularProgressoSla(t, "solucao", agora).severidade === "estourado").length
     : 0
   const slaPrestesAEstourar = agora
     ? naoFinalizados.filter((t) => {
-        const severidade = calcularSeveridade(t.slaSolucaoVenceEm, t.statusKey, agora)
+        const { severidade } = calcularProgressoSla(t, "solucao", agora)
         return severidade === "critico" || severidade === "atencao"
       }).length
     : 0

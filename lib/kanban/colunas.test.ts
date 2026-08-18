@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { Empresa, Ticket } from "@/lib/types"
 
-import { aguardandoAnalista, colunasDoKanban, dropPermitido } from "./colunas"
+import { aguardandoAnalista, colunasDoKanban } from "./colunas"
 
 function empresa(overrides: Partial<Empresa> = {}): Empresa {
   return {
@@ -37,6 +37,9 @@ function ticket(overrides: Partial<Ticket> = {}): Ticket {
     slaMinutosPausados: 0,
     ultimaInteracaoEm: null,
     ultimaInteracaoPapel: null,
+    paiId: null,
+    conciliadoNoId: null,
+    mesaId: null,
     ...overrides,
   }
 }
@@ -70,37 +73,6 @@ describe("colunasDoKanban", () => {
   it("remove a coluna cancelado mesmo quando a empresa a usa", () => {
     const colunas = colunasDoKanban(empresa({ statusAtivos: ["a_fazer", "cancelado"] }))
     expect(colunas.map((c) => c.statusKey)).toEqual(["a_fazer", null])
-  })
-})
-
-describe("dropPermitido", () => {
-  const colunas = colunasDoKanban(empresa())
-
-  it("recusa soltar na mesma coluna em que o ticket já está", () => {
-    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "a_fazer", colunas)).toBe("bloqueado")
-  })
-
-  it("recusa soltar num status fora das colunas visíveis", () => {
-    expect(dropPermitido(ticket({ statusKey: "a_fazer" }), "pausado", colunas)).toBe("bloqueado")
-  })
-
-  it("exige técnico ao sair de A fazer sem analista atribuído", () => {
-    expect(
-      dropPermitido(ticket({ statusKey: "a_fazer", analistaId: null }), "em_andamento", colunas)
-    ).toBe("exige-tecnico")
-  })
-
-  it("permite soltar numa coluna diferente e visível quando há analista", () => {
-    expect(
-      dropPermitido(ticket({ statusKey: "a_fazer", analistaId: "analista-1" }), "em_andamento", colunas)
-    ).toBe("permitido")
-  })
-
-  it("permite cancelar mesmo sem analista atribuído", () => {
-    const colunasComCancelado = [...colunas, { tipo: "status" as const, statusKey: "cancelado" as const, rotulo: "Cancelado" }]
-    expect(
-      dropPermitido(ticket({ statusKey: "a_fazer", analistaId: null }), "cancelado", colunasComCancelado)
-    ).toBe("permitido")
   })
 })
 

@@ -29,23 +29,6 @@ export function colunasDoKanban(empresa: Empresa | undefined): ColunaKanban[] {
   return [...colunasStatus, { tipo: "derivada", statusKey: null, rotulo: ROTULO_COLUNA_DERIVADA }]
 }
 
-export type ResultadoDrop = "permitido" | "bloqueado" | "exige-tecnico"
-
-// Não permite soltar no mesmo status em que o ticket já está, nem num
-// status fora das colunas visíveis (ex.: empresa não usa esse status). Sair
-// de qualquer coluna exige técnico atribuído, exceto ir para "cancelado" —
-// cancelar um chamado que ninguém pegou ainda é legítimo.
-export function dropPermitido(ticket: Ticket, destino: StatusKey, colunas: ColunaKanban[]): ResultadoDrop {
-  if (destino === ticket.statusKey) return "bloqueado"
-
-  const destinoVisivel = colunas.some((c) => c.tipo === "status" && c.statusKey === destino)
-  if (!destinoVisivel) return "bloqueado"
-
-  if (destino !== "cancelado" && ticket.analistaId === null) return "exige-tecnico"
-
-  return "permitido"
-}
-
 // "Aguardando resposta do analista": chamado ainda aberto cuja última
 // interação pública foi do solicitante. Deriva de `ultima_interacao_papel`
 // (gravado por adicionarComentario), não recalcula a partir dos comentários

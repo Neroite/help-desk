@@ -24,9 +24,17 @@ export const PRIORIDADES: Prioridade[] = ["baixa", "media", "alta", "critica"]
 
 export type Papel = "admin" | "analista" | "solicitante"
 
-export type Mesa = "Service Desk" | "Field" | "N2"
+export interface MesaTrabalho {
+  id: string
+  nome: string
+  ativo: boolean
+}
 
-export const MESAS: Mesa[] = ["Service Desk", "Field", "N2"]
+export interface Setor {
+  id: string
+  nome: string
+  empresaId: string | null
+}
 
 export interface Empresa {
   id: string
@@ -43,6 +51,7 @@ export interface Usuario {
   email: string
   papel: Papel
   empresaId: string | null
+  setorId: string | null
   avatarIniciais: string
 }
 
@@ -109,6 +118,29 @@ export type TicketEventoTipo =
   | "pausa"
   | "retomada"
   | "categoria"
+  | "filho"
+  | "conciliacao"
+  | "contato"
+  | "mesa"
+
+export interface TicketContato {
+  ticketId: number
+  usuarioId: string
+  criadoEm: string
+  adicionadoPor: string | null
+}
+
+export interface TicketVisualizacao {
+  ticketId: number
+  usuarioId: string
+  vistoEm: string
+}
+
+export interface TicketFilho {
+  numero: number
+  titulo: string
+  statusKey: StatusKey
+}
 
 export interface TicketEvento {
   id: string
@@ -141,11 +173,13 @@ export interface Ticket {
   slaMinutosPausados: number
   ultimaInteracaoEm: string | null
   ultimaInteracaoPapel: Papel | null
+  paiId: number | null
+  conciliadoNoId: number | null
+  mesaId: string | null
   // Campos só do mock antigo (sem coluna real em helpdesk.ticket) — a UI
   // que ainda os usa trata como enriquecimento opcional, não dado real.
   assunto?: string
   contatoId?: string
-  mesa?: Mesa
   atualizadoEm?: string
   tarefasAbertas?: number
   tarefasConcluidas?: number

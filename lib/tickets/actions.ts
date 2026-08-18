@@ -22,6 +22,7 @@ export interface CriarChamadoInput {
   empresaId: string
   solicitanteId: string
   catProblemaId?: string | null
+  mesaId?: string | null
 }
 
 export async function criarChamado(input: CriarChamadoInput): Promise<{ numero: number }> {
@@ -48,6 +49,7 @@ export async function criarChamado(input: CriarChamadoInput): Promise<{ numero: 
       empresa_id: input.empresaId,
       solicitante_id: input.solicitanteId,
       cat_problema_id: input.catProblemaId ?? null,
+      mesa_id: input.mesaId ?? null,
       sla_resposta_vence_em: prazos.respostaVenceEm.toISOString(),
       sla_solucao_vence_em: prazos.solucaoVenceEm.toISOString(),
     })
@@ -306,8 +308,8 @@ export async function mudarStatus(ticketNumero: number, novoStatus: StatusKey): 
 
   // Sair de qualquer coluna exige técnico atribuído, exceto ir para
   // "cancelado" — cancelar um chamado que ninguém pegou ainda é legítimo.
-  // Mesma regra de lib/kanban/colunas.ts#dropPermitido, aplicada aqui pra
-  // valer também fora do drag-and-drop (menu do card, quick edit, bulk).
+  // Único ponto de guarda agora — o Kanban é só visualização (não muda mais
+  // status), então isso vale pro menu rápido da lista e pras ações em lote.
   if (novoStatus !== "cancelado" && estadoAtual.analista_id === null) {
     throw new Error("Chamado sem técnico atribuído — atribua um técnico antes de mudar o status.")
   }
@@ -353,70 +355,6 @@ export async function mudarStatus(ticketNumero: number, novoStatus: StatusKey): 
     para: novoStatus,
     autor_id: user?.id,
   })
-
-  revalidatePath(`/chamados/${ticketNumero}`)
-  revalidatePath("/chamados")
-}
-
-// Usada pelo diálogo "Atribuir técnico" do Kanban, quando um drop exige
-// técnico (ver lib/kanban/colunas.ts#dropPermitido): atribui e move numa
-// chamada só, em vez de duas idas ao servidor.
-export async function atribuirEMover(
-  ticketNumero: number,
-  analistaId: string,
-  novoStatus: StatusKey
-): Promise<void> {
-  const supabase = await createClient()
-
-  const { data: ticket, error: erroTicket } = await supabase
-    .from("ticket")
-    .select(
-      "criado_em, sla_resposta_vence_em, sla_solucao_vence_em, sla_pausado_em, sla_minutos_pausados, status_key"
-    )
-    .eq("numero", ticketNumero)
-    .single()
-  if (erroTicket) throw erroTicket
-
-  const estadoAtual: TicketSlaColunas = ticket
-  const estavaPausado = STATUS_PAUSA_SLA.includes(estadoAtual.status_key)
-  const vaiPausar = STATUS_PAUSA_SLA.includes(novoStatus)
-
-  const slaState = {
-    criadoEm: new Date(estadoAtual.criado_em),
-    slaRespostaVenceEm: new Date(estadoAtual.sla_resposta_vence_em),
-    slaSolucaoVenceEm: new Date(estadoAtual.sla_solucao_vence_em),
-    slaPausadoEm: estadoAtual.sla_pausado_em ? new Date(estadoAtual.sla_pausado_em) : null,
-    slaMinutosPausados: estadoAtual.sla_minutos_pausados,
-  }
-
-  const agora = new Date()
-  const proximoSla = !estavaPausado && vaiPausar
-    ? aplicarPausa(slaState, agora)
-    : estavaPausado && !vaiPausar
-      ? aplicarRetomada(slaState, agora)
-      : slaState
-
-  const atualizacao: Record<string, unknown> = {
-    analista_id: analistaId,
-    status_key: novoStatus,
-    sla_pausado_em: proximoSla.slaPausadoEm?.toISOString() ?? null,
-    sla_minutos_pausados: proximoSla.slaMinutosPausados,
-    sla_resposta_vence_em: proximoSla.slaRespostaVenceEm.toISOString(),
-    sla_solucao_vence_em: proximoSla.slaSolucaoVenceEm.toISOString(),
-  }
-  if (novoStatus === "finalizado") atualizacao.finalizado_em = agora.toISOString()
-
-  const { error } = await supabase.from("ticket").update(atualizacao).eq("numero", ticketNumero)
-  if (error) throw error
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  await supabase.from("ticket_evento").insert([
-    { ticket_id: ticketNumero, tipo: "atribuicao", de: null, para: analistaId, autor_id: user?.id },
-    { ticket_id: ticketNumero, tipo: "status", de: estadoAtual.status_key, para: novoStatus, autor_id: user?.id },
-  ])
 
   revalidatePath(`/chamados/${ticketNumero}`)
   revalidatePath("/chamados")
@@ -638,6 +576,214 @@ export async function definirCategorias(
     para: "categoria",
     autor_id: user?.id,
     corpo: `Categorias atualizadas — Atendimento: ${atendimento?.nome ?? "sem categoria"} · Problema: ${problema?.nome ?? "sem categoria"}`,
+  })
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+  revalidatePath("/chamados")
+}
+
+export interface CriarTicketFilhoInput {
+  paiNumero: number
+  titulo: string
+  descricao: string
+  mesaId?: string | null
+}
+
+// Divide um chamado em ações menores por setor: o filho herda cliente e
+// solicitante do pai (mesmo problema, outra frente de trabalho), mas nasce
+// com prazo de SLA e política próprios — como qualquer chamado novo.
+export async function criarTicketFilho(input: CriarTicketFilhoInput): Promise<{ numero: number }> {
+  const supabase = await createClient()
+
+  const { data: pai, error: erroPai } = await supabase
+    .from("ticket")
+    .select("empresa_id, solicitante_id")
+    .eq("numero", input.paiNumero)
+    .single()
+  if (erroPai) throw erroPai
+
+  const { data: politicaPadrao, error: erroPolitica } = await supabase
+    .from("sla_policy")
+    .select("minutos_resposta, minutos_solucao")
+    .is("prioridade", null)
+    .single()
+  if (erroPolitica) throw erroPolitica
+
+  const agora = new Date()
+  const prazos = calcularPrazos(agora, {
+    minutosResposta: politicaPadrao.minutos_resposta,
+    minutosSolucao: politicaPadrao.minutos_solucao,
+  })
+
+  const { data: filho, error } = await supabase
+    .from("ticket")
+    .insert({
+      titulo: input.titulo,
+      descricao: input.descricao,
+      empresa_id: pai.empresa_id,
+      solicitante_id: pai.solicitante_id,
+      pai_id: input.paiNumero,
+      mesa_id: input.mesaId ?? null,
+      sla_resposta_vence_em: prazos.respostaVenceEm.toISOString(),
+      sla_solucao_vence_em: prazos.solucaoVenceEm.toISOString(),
+    })
+    .select("numero")
+    .single()
+  if (error) throw error
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  await supabase.from("ticket_evento").insert([
+    { ticket_id: filho.numero, tipo: "criado", de: null, para: "a_fazer", autor_id: user?.id },
+    {
+      ticket_id: input.paiNumero,
+      tipo: "filho",
+      de: null,
+      para: String(filho.numero),
+      autor_id: user?.id,
+    },
+  ])
+
+  revalidatePath(`/chamados/${input.paiNumero}`)
+  revalidatePath("/chamados")
+  return { numero: filho.numero }
+}
+
+// Unifica chamados duplicados: o duplicado é anexado ao principal (fica
+// rastreável por conciliado_no_id) e finalizado, preservando comentários e
+// anexos — nada é apagado. Funciona em qualquer status dos dois lados, por
+// isso não passa por mudarStatus (que exige técnico atribuído antes de sair
+// de "A fazer" — regra de atendimento normal, não de deduplicação).
+export async function conciliarChamado(principalNumero: number, duplicadoNumero: number): Promise<void> {
+  if (principalNumero === duplicadoNumero) {
+    throw new Error("Um chamado não pode ser conciliado nele mesmo.")
+  }
+
+  const supabase = await createClient()
+  const agora = new Date().toISOString()
+
+  const { error } = await supabase
+    .from("ticket")
+    .update({ conciliado_no_id: principalNumero, status_key: "finalizado", finalizado_em: agora })
+    .eq("numero", duplicadoNumero)
+  if (error) throw error
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  await supabase.from("ticket_evento").insert([
+    {
+      ticket_id: duplicadoNumero,
+      tipo: "conciliacao",
+      de: null,
+      para: String(principalNumero),
+      autor_id: user?.id,
+      corpo: `Conciliado como duplicado do chamado #${principalNumero}`,
+    },
+    {
+      ticket_id: principalNumero,
+      tipo: "conciliacao",
+      de: null,
+      para: String(duplicadoNumero),
+      autor_id: user?.id,
+      corpo: `Chamado #${duplicadoNumero} conciliado como duplicado deste`,
+    },
+  ])
+
+  revalidatePath(`/chamados/${principalNumero}`)
+  revalidatePath(`/chamados/${duplicadoNumero}`)
+  revalidatePath("/chamados")
+}
+
+// Upsert de "última vez que este usuário viu o chamado" — chamado ao abrir
+// o detalhe (staff), não é um log de todas as visualizações.
+export async function registrarVisualizacao(ticketNumero: number): Promise<void> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from("ticket_visualizacao")
+    .upsert(
+      { ticket_id: ticketNumero, usuario_id: user.id, visto_em: new Date().toISOString() },
+      { onConflict: "ticket_id,usuario_id" }
+    )
+}
+
+export async function adicionarContato(ticketNumero: number, usuarioId: string): Promise<void> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { error } = await supabase
+    .from("ticket_contato")
+    .insert({ ticket_id: ticketNumero, usuario_id: usuarioId, adicionado_por: user?.id })
+  if (error) throw error
+
+  const { data: contato } = await supabase.from("usuario").select("nome").eq("id", usuarioId).single()
+
+  await supabase.from("ticket_evento").insert({
+    ticket_id: ticketNumero,
+    tipo: "contato",
+    de: null,
+    para: usuarioId,
+    autor_id: user?.id,
+    corpo: `${user?.id === usuarioId ? "Você" : (contato?.nome ?? "Alguém")} passou a acompanhar o chamado`,
+  })
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+}
+
+export async function removerContato(ticketNumero: number, usuarioId: string): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("ticket_contato")
+    .delete()
+    .eq("ticket_id", ticketNumero)
+    .eq("usuario_id", usuarioId)
+  if (error) throw error
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+}
+
+export async function definirMesa(ticketNumero: number, mesaId: string | null): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: ticketAtual, error: erroTicket } = await supabase
+    .from("ticket")
+    .select("mesa_id")
+    .eq("numero", ticketNumero)
+    .single()
+  if (erroTicket) throw erroTicket
+
+  const { error } = await supabase.from("ticket").update({ mesa_id: mesaId }).eq("numero", ticketNumero)
+  if (error) throw error
+
+  const [{ data: mesaAnterior }, { data: mesaNova }] = await Promise.all([
+    ticketAtual.mesa_id
+      ? supabase.from("mesa_trabalho").select("nome").eq("id", ticketAtual.mesa_id).single()
+      : Promise.resolve({ data: null as { nome: string } | null }),
+    mesaId
+      ? supabase.from("mesa_trabalho").select("nome").eq("id", mesaId).single()
+      : Promise.resolve({ data: null as { nome: string } | null }),
+  ])
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  await supabase.from("ticket_evento").insert({
+    ticket_id: ticketNumero,
+    tipo: "mesa",
+    de: mesaAnterior?.nome ?? null,
+    para: mesaNova?.nome ?? "Sem mesa",
+    autor_id: user?.id,
   })
 
   revalidatePath(`/chamados/${ticketNumero}`)

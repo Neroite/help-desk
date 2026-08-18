@@ -133,8 +133,17 @@ function ThemeToggle() {
 function NovoTicketButton() {
   const { abrir } = useNovoChamado()
   return (
-    <Button type="button" size="sm" className="cursor-pointer rounded-full px-3" onClick={abrir}>
-      + Ticket
+    <Button
+      type="button"
+      size="sm"
+      aria-label="Novo ticket"
+      className="cursor-pointer rounded-full px-3"
+      onClick={abrir}
+    >
+      <span aria-hidden="true" className="sm:hidden">
+        +
+      </span>
+      <span className="hidden sm:inline">+ Ticket</span>
     </Button>
   )
 }
@@ -299,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <form
               onSubmit={handleBuscaSubmit}
               role="search"
-              className="relative w-full max-w-md"
+              className="relative min-w-0 flex-1 sm:max-w-md"
             >
               <Search
                 aria-hidden="true"

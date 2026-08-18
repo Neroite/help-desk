@@ -1,23 +1,23 @@
 "use client"
 
-import { SLA_SEVERIDADE_META } from "@/lib/status"
-import { calcularSeveridade, formatarTempoRestante } from "@/lib/sla-display"
+import { calcularProgressoSla, formatarTempoRestante, type SlaTipo, type TicketSlaInfo } from "@/lib/sla-display"
 import { useSlaClock } from "@/lib/sla-clock"
-import type { StatusKey } from "@/lib/types"
+import { SLA_SEVERIDADE_META } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 interface SlaBadgeProps {
   rotulo: string
-  venceEm: string | null
-  statusKey: StatusKey
+  ticket: TicketSlaInfo
+  tipo: SlaTipo
   className?: string
 }
 
 // Consome o SlaClockProvider (tick de 30s) em vez de ter seu próprio
 // setInterval — com dezenas de chamados na tela, cada badge com o
 // próprio timer de 1s vira jank garantido.
-export function SlaBadge({ rotulo, venceEm, statusKey, className }: SlaBadgeProps) {
+export function SlaBadge({ rotulo, ticket, tipo, className }: SlaBadgeProps) {
   const agora = useSlaClock()
+  const venceEm = tipo === "resposta" ? ticket.slaRespostaVenceEm : ticket.slaSolucaoVenceEm
 
   // `agora` só existe depois de montar no cliente (ver lib/sla-clock.tsx —
   // evita divergir do HTML renderizado no servidor). Até lá, um placeholder
@@ -35,10 +35,10 @@ export function SlaBadge({ rotulo, venceEm, statusKey, className }: SlaBadgeProp
     )
   }
 
-  const severidade = calcularSeveridade(venceEm, statusKey, agora)
+  const { severidade, agoraEfetivo } = calcularProgressoSla(ticket, tipo, agora)
   const meta = SLA_SEVERIDADE_META[severidade]
   const Icon = meta.icon
-  const tempo = formatarTempoRestante(venceEm, agora)
+  const tempo = formatarTempoRestante(venceEm, agoraEfetivo)
   const estourado = severidade === "estourado"
 
   return (

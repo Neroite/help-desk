@@ -1,14 +1,19 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Calendar,
   Check,
+  GitMerge,
   Link2,
+  MessageSquarePlus,
+  Network,
   Paperclip,
   Pause,
   Play,
+  Plus,
   Printer,
   X,
   type LucideIcon,
@@ -17,16 +22,22 @@ import { toast } from "sonner"
 
 import { AnexoList } from "@/components/chamado/anexo-list"
 import { ApontamentoHoras } from "@/components/chamado/apontamento-horas"
+import { ApontamentoHorasDialog } from "@/components/chamado/apontamento-horas-dialog"
 import { AvaliacaoEstrelas } from "@/components/chamado/avaliacao-estrelas"
 import { CategoriaAtendimentoSelect } from "@/components/chamado/categoria-atendimento-select"
 import { CategoriaProblemaSelect } from "@/components/chamado/categoria-problema-select"
 import { ComentarioComposer } from "@/components/chamado/comentario-composer"
+import { ConciliarDialog } from "@/components/chamado/conciliar-dialog"
+import { CriarTicketFilhoDialog } from "@/components/chamado/criar-ticket-filho-dialog"
+import { NovoComentarioDialog } from "@/components/chamado/novo-comentario-dialog"
+import { StatusBadge } from "@/components/chamado/status-badge"
 import { PausarDialog } from "@/components/chamado/pausar-dialog"
 import { SlaBadge } from "@/components/chamado/sla-badge"
 import { SlaProgress } from "@/components/chamado/sla-progress"
 import { TicketTimeline, type FiltroTimeline } from "@/components/chamado/ticket-timeline"
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
   Select,
@@ -43,10 +54,13 @@ import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
 import {
   adicionarComentario,
+  adicionarContato,
   definirCategorias,
+  definirMesa,
   definirPrioridade,
   iniciarAtendimento,
   mudarStatus,
+  removerContato,
   retomarChamado,
 } from "@/lib/tickets/actions"
 import { PRIORIDADE_META, STATUS_META } from "@/lib/status"
@@ -61,13 +75,17 @@ import {
   type Prioridade,
   type StatusKey,
   type Ticket,
+  type TicketContato,
   type TicketEvento,
+  type TicketFilho,
+  type TicketVisualizacao,
 } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 // Sentinela de valor pra representar "sem prioridade" dentro do Select --
 // o componente base-ui nao aceita item com value="" nem value=null.
 const SEM_PRIORIDADE = "sem_prioridade"
+const SEM_MESA = "sem_mesa"
 
 const ABAS_MOBILE = ["timeline", "horas", "detalhes"] as const
 type AbaMobile = (typeof ABAS_MOBILE)[number]
@@ -168,6 +186,9 @@ interface ChamadoDetalheClientProps {
   anexos: Anexo[]
   avaliacao: Avaliacao | null
   timerAberto: ApontamentoHorasItem | null
+  filhos: TicketFilho[]
+  contatos: TicketContato[]
+  visualizacoes: TicketVisualizacao[]
 }
 
 export function ChamadoDetalheClient({
@@ -178,22 +199,35 @@ export function ChamadoDetalheClient({
   anexos,
   avaliacao,
   timerAberto,
+  filhos,
+  contatos,
+  visualizacoes,
 }: ChamadoDetalheClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { empresaPorId, usuarioPorId, usuarioAtual } = useReferenceData()
+  const { empresaPorId, usuarioPorId, usuarioAtual, mesaPorId, usuarios, mesasTrabalho } = useReferenceData()
 
   const empresa = empresaPorId(ticket.empresaId)
-  const solicitante = usuarioPorId(ticket.solicitanteId)
   const analista = usuarioPorId(ticket.analistaId)
+  const solicitante = usuarioPorId(ticket.solicitanteId)
+  const mesa = mesaPorId(ticket.mesaId)
 
   const [statusKey, setStatusKey] = useEstadoSincronizado(ticket.statusKey)
+  // SlaProgress/SlaBadge precisam do ticket inteiro (pausa, minutos
+  // pausados, encerramento) mas o status exibido pode estar à frente do
+  // `ticket` original por causa do update otimista acima.
+  const ticketParaSla = { ...ticket, statusKey }
   const [prioridade, setPrioridade] = useEstadoSincronizado(ticket.prioridade)
   const [catAtendimentoId, setCatAtendimentoId] = useEstadoSincronizado(ticket.catAtendimentoId ?? "")
   const [catProblemaId, setCatProblemaId] = useEstadoSincronizado(ticket.catProblemaId ?? "")
   const [comentariosState, setComentariosState] = useEstadoSincronizado(comentarios)
   const [timelineFiltro, setTimelineFiltro] = useState<FiltroTimeline>("todos")
   const [pausarAberto, setPausarAberto] = useState(false)
+  const [novoComentarioAberto, setNovoComentarioAberto] = useState(false)
+  const [horasDialogAberto, setHorasDialogAberto] = useState(false)
+  const [novoFilhoAberto, setNovoFilhoAberto] = useState(false)
+  const [conciliarAberto, setConciliarAberto] = useState(false)
+  const [novoContatoId, setNovoContatoId] = useState("")
 
   // Sem filtro por linha (ver comentário em use-realtime-refresh.ts): avisa
   // em qualquer mudança de ticket/comentário/evento, não só a deste
@@ -328,6 +362,32 @@ export function ChamadoDetalheClient({
     setTimelineFiltro((atual) => (atual === valor ? "todos" : valor))
   }
 
+  function handleAdicionarContato() {
+    if (!novoContatoId) return
+    adicionarContato(ticket.numero, novoContatoId)
+      .then(() => {
+        toast.success("Contato adicionado")
+        setNovoContatoId("")
+        router.refresh()
+      })
+      .catch(() => toast.error("Não foi possível adicionar o contato."))
+  }
+
+  function handleRemoverContato(usuarioId: string) {
+    removerContato(ticket.numero, usuarioId)
+      .then(() => {
+        toast.success("Contato removido")
+        router.refresh()
+      })
+      .catch(() => toast.error("Não foi possível remover o contato."))
+  }
+
+  function handleDefinirMesa(mesaId: string | null) {
+    definirMesa(ticket.numero, !mesaId || mesaId === SEM_MESA ? null : mesaId)
+      .then(() => router.refresh())
+      .catch(() => toast.error("Não foi possível definir a mesa de trabalho."))
+  }
+
   // Timer em aberto ainda não tem duração fechada — só soma o que encerrou.
   const totalMinutosApontados = apontamentos.reduce((soma, a) => soma + (a.minutos ?? 0), 0)
 
@@ -384,30 +444,20 @@ export function ChamadoDetalheClient({
     </section>
   )
 
-  const solicitanteSection = (
-    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-solicitante">
-      <h2 id="secao-solicitante" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Solicitante
+  // Avaliação do atendimento morava dentro do bloco "Solicitante" (removido
+  // — ver openspec/specs/chamado-interacao); vira uma seção própria, sem a
+  // identidade do solicitante junto, e só aparece quando existe avaliação.
+  const avaliacaoSection = avaliacao ? (
+    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-avaliacao">
+      <h2 id="secao-avaliacao" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Avaliação
       </h2>
       <div className="flex items-center gap-2">
-        <Avatar size="sm">
-          <AvatarFallback>{solicitante?.avatarIniciais ?? "?"}</AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-foreground">{solicitante?.nome ?? "Solicitante desconhecido"}</span>
-          <span className="text-xs text-muted-foreground">{empresa?.nome ?? "-"}</span>
-        </div>
+        <AvaliacaoEstrelas valor={avaliacao.estrelas} somenteLeitura />
+        <span className="text-xs text-muted-foreground">avaliação do atendimento</span>
       </div>
-      {avaliacao ? (
-        <div className="flex items-center gap-2">
-          <AvaliacaoEstrelas valor={avaliacao.estrelas} somenteLeitura />
-          <span className="text-xs text-muted-foreground">avaliação do atendimento</span>
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">Sem avaliação ainda</p>
-      )}
     </section>
-  )
+  ) : null
 
   const infoSection = (
     <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-info">
@@ -434,36 +484,172 @@ export function ChamadoDetalheClient({
       <h2 id="secao-sla" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         SLA
       </h2>
-      <SlaProgress
-        rotulo="Resposta"
-        venceEm={ticket.slaRespostaVenceEm}
-        criadoEm={ticket.criadoEm}
-        statusKey={statusKey}
-        mostrarRotulo
-      />
-      <SlaProgress
-        rotulo="Solução"
-        venceEm={ticket.slaSolucaoVenceEm}
-        criadoEm={ticket.criadoEm}
-        statusKey={statusKey}
-        mostrarRotulo
-      />
+      <SlaProgress rotulo="Resposta" ticket={ticketParaSla} tipo="resposta" mostrarRotulo />
+      <SlaProgress rotulo="Solução" ticket={ticketParaSla} tipo="solucao" mostrarRotulo />
     </section>
   )
 
-  const seguidoresSection = (
-    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-seguidores">
-      <h2 id="secao-seguidores" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Seguidores
+  // Candidatos a contato adicional: solicitantes da mesma empresa, exceto
+  // quem já abriu o chamado (esse já aparece por solicitanteId, não
+  // precisa duplicar em ticket_contato) e quem já foi adicionado.
+  const idsContatos = new Set(contatos.map((c) => c.usuarioId))
+  const candidatosContato = usuarios.filter(
+    (u) => u.papel === "solicitante" && u.empresaId === ticket.empresaId && u.id !== ticket.solicitanteId && !idsContatos.has(u.id)
+  )
+
+  const contatosSection = (
+    <section className="flex flex-col gap-(--space-3)" aria-labelledby="secao-contatos">
+      <h2 id="secao-contatos" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Contatos
       </h2>
-      {analista ? (
-        <AvatarGroup aria-label="Seguidores do chamado">
+      {solicitante && (
+        <div className="flex items-center gap-2">
           <Avatar size="sm">
-            <AvatarFallback>{analista.avatarIniciais}</AvatarFallback>
+            <AvatarFallback>{solicitante.avatarIniciais}</AvatarFallback>
           </Avatar>
-        </AvatarGroup>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium text-foreground">{solicitante.nome}</span>
+            <span className="truncate text-xs text-muted-foreground">{solicitante.email}</span>
+          </div>
+        </div>
+      )}
+      {contatos.map((contato) => {
+        const usuario = usuarioPorId(contato.usuarioId)
+        if (!usuario) return null
+        return (
+          <div key={contato.usuarioId} className="flex items-center gap-2">
+            <Avatar size="sm">
+              <AvatarFallback>{usuario.avatarIniciais}</AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-sm font-medium text-foreground">{usuario.nome}</span>
+              <span className="truncate text-xs text-muted-foreground">{usuario.email}</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Remover ${usuario.nome} dos contatos`}
+              className="cursor-pointer shrink-0"
+              onClick={() => handleRemoverContato(contato.usuarioId)}
+            >
+              <X className="size-3.5" aria-hidden="true" />
+            </Button>
+          </div>
+        )
+      })}
+      {candidatosContato.length > 0 && (
+        <div className="flex items-center gap-1.5">
+          <Select value={novoContatoId} onValueChange={(value) => setNovoContatoId(value ?? "")}>
+            <SelectTrigger className="h-8 flex-1 text-xs" aria-label="Adicionar contato">
+              <SelectValue placeholder="Adicionar contato..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {candidatosContato.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.nome}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="outline"
+            aria-label="Adicionar contato"
+            className="cursor-pointer shrink-0"
+            disabled={!novoContatoId}
+            onClick={handleAdicionarContato}
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+
+  const quemViuSection = visualizacoes.length > 0 && (
+    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-quem-viu">
+      <h2 id="secao-quem-viu" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Quem viu
+      </h2>
+      <AvatarGroup aria-label="Quem visualizou o chamado">
+        {visualizacoes.map((v) => {
+          const usuario = usuarioPorId(v.usuarioId)
+          return (
+            <Tooltip key={v.usuarioId}>
+              <TooltipTrigger>
+                <Avatar size="sm">
+                  <AvatarFallback>{usuario?.avatarIniciais ?? "?"}</AvatarFallback>
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent>{usuario?.nome ?? "Alguém"}</TooltipContent>
+            </Tooltip>
+          )
+        })}
+      </AvatarGroup>
+    </section>
+  )
+
+  const mesaSection = (
+    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-mesa">
+      <h2 id="secao-mesa" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Mesa de trabalho
+      </h2>
+      <Select value={ticket.mesaId ?? SEM_MESA} onValueChange={handleDefinirMesa}>
+        <SelectTrigger className="h-8 w-full text-xs" aria-label="Mesa de trabalho">
+          <SelectValue>{mesa?.nome ?? "Sem mesa"}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value={SEM_MESA}>Sem mesa</SelectItem>
+            {mesasTrabalho.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.nome}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </section>
+  )
+
+  const filhosSection = (
+    <section className="flex flex-col gap-(--space-2)" aria-labelledby="secao-filhos">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="secao-filhos" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Chamados filho
+        </h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Criar chamado filho"
+          className="cursor-pointer"
+          onClick={() => setNovoFilhoAberto(true)}
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+        </Button>
+      </div>
+      {filhos.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum chamado filho</p>
       ) : (
-        <p className="text-xs text-muted-foreground">Nenhum seguidor</p>
+        <ul className="flex flex-col gap-1.5">
+          {filhos.map((filho) => (
+            <li key={filho.numero}>
+              <Link
+                href={`/chamados/${filho.numero}`}
+                className="flex items-center gap-2 text-xs hover:underline"
+              >
+                <span className="font-tabular text-muted-foreground">#{filho.numero}</span>
+                <span className="min-w-0 flex-1 truncate text-foreground">{filho.titulo}</span>
+                <StatusBadge statusKey={filho.statusKey} className="h-5 shrink-0 px-1.5" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   )
@@ -478,6 +664,16 @@ export function ChamadoDetalheClient({
           interativo
           onClick={() => alternarFiltro("comentarios")}
         />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Novo comentário"
+          className="cursor-pointer rounded-full"
+          onClick={() => setNovoComentarioAberto(true)}
+        >
+          <MessageSquarePlus className="size-3.5" aria-hidden="true" />
+        </Button>
         <FiltroPill
           rotulo="Anexos"
           contador={anexos.length}
@@ -487,7 +683,10 @@ export function ChamadoDetalheClient({
         />
         <FiltroPill rotulo="Base de conhecimento" contador={7} onClick={() => toast("Em breve")} />
         <FiltroPill rotulo="E-mail" onClick={() => toast("Em breve")} />
-        <FiltroPill rotulo={`Horas ${formatarHorasMinutos(totalMinutosApontados)}`} onClick={() => toast("Em breve")} />
+        <FiltroPill
+          rotulo={`Horas ${formatarHorasMinutos(totalMinutosApontados)}`}
+          onClick={() => setHorasDialogAberto(true)}
+        />
       </div>
 
       <TicketTimeline
@@ -503,6 +702,19 @@ export function ChamadoDetalheClient({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-(--space-4)">
+        {ticket.conciliadoNoId && (
+          <div
+            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--status-cancelado)", color: "var(--status-cancelado-fg)" }}
+          >
+            <GitMerge className="size-4 shrink-0" aria-hidden="true" />
+            Este chamado foi conciliado como duplicado de{" "}
+            <Link href={`/chamados/${ticket.conciliadoNoId}`} className="font-medium underline">
+              #{ticket.conciliadoNoId}
+            </Link>
+            . O histórico continua acessível abaixo.
+          </div>
+        )}
         <header className="flex flex-col gap-(--space-2) border-b border-border pb-(--space-4)">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-(--space-2)">
@@ -517,7 +729,7 @@ export function ChamadoDetalheClient({
               </div>
 
               <p className="text-sm text-muted-foreground">
-                {empresa?.nome ?? "Empresa desconhecida"} - {solicitante?.nome ?? "Solicitante desconhecido"} -{" "}
+                {empresa?.nome ?? "Empresa desconhecida"} -{" "}
                 {analista ? `${analista.nome} (analista)` : "Sem analista atribuído"}
               </p>
             </div>
@@ -525,6 +737,8 @@ export function ChamadoDetalheClient({
             <div className="flex items-center gap-1.5">
               <AcaoToolbar icon={Link2} rotulo="Vincular chamado" onClick={() => toast.success("Vínculo registrado (mock)")} />
               <AcaoToolbar icon={Paperclip} rotulo="Anexar arquivo" onClick={() => toast.success("Anexo registrado (mock)")} />
+              <AcaoToolbar icon={GitMerge} rotulo="Conciliar" onClick={() => setConciliarAberto(true)} />
+              <AcaoToolbar icon={Network} rotulo="Criar chamado filho" onClick={() => setNovoFilhoAberto(true)} />
               {statusKey === "em_andamento" ? (
                 <AcaoToolbar icon={Pause} rotulo="Pausar chamado" onClick={() => setPausarAberto(true)} />
               ) : !STATUS_FINAIS.includes(statusKey) ? (
@@ -581,8 +795,8 @@ export function ChamadoDetalheClient({
             </Select>
 
             <div className="flex items-center gap-2 sm:ml-auto">
-              <SlaBadge rotulo="Resposta" venceEm={ticket.slaRespostaVenceEm} statusKey={statusKey} />
-              <SlaBadge rotulo="Solução" venceEm={ticket.slaSolucaoVenceEm} statusKey={statusKey} />
+              <SlaBadge rotulo="Resposta" ticket={ticketParaSla} tipo="resposta" />
+              <SlaBadge rotulo="Solução" ticket={ticketParaSla} tipo="solucao" />
             </div>
           </div>
         </header>
@@ -608,13 +822,19 @@ export function ChamadoDetalheClient({
               {horasSection}
             </TabsContent>
             <TabsContent value="detalhes" className="flex flex-col gap-(--space-4) pt-(--space-3)">
-              {solicitanteSection}
-              <Separator />
+              {avaliacaoSection}
+              {avaliacaoSection && <Separator />}
               {infoSection}
               <Separator />
               {slaSection}
               <Separator />
-              {seguidoresSection}
+              {contatosSection}
+              {quemViuSection && <Separator />}
+              {quemViuSection}
+              <Separator />
+              {mesaSection}
+              <Separator />
+              {filhosSection}
               <Separator />
               {anexosSection}
               <Separator />
@@ -635,13 +855,19 @@ export function ChamadoDetalheClient({
             className="flex w-full flex-col gap-(--space-4) lg:border-l lg:border-border lg:pl-(--space-4)"
             aria-label="Detalhes do chamado"
           >
-            {solicitanteSection}
-            <Separator />
+            {avaliacaoSection}
+            {avaliacaoSection && <Separator />}
             {infoSection}
             <Separator />
             {slaSection}
             <Separator />
-            {seguidoresSection}
+            {contatosSection}
+            {quemViuSection && <Separator />}
+            {quemViuSection}
+            <Separator />
+            {mesaSection}
+            <Separator />
+            {filhosSection}
             <Separator />
             {horasSection}
             <Separator />
@@ -658,6 +884,25 @@ export function ChamadoDetalheClient({
         ticketNumero={ticket.numero}
         onSucesso={handlePausarSucesso}
       />
+
+      <NovoComentarioDialog
+        open={novoComentarioAberto}
+        onOpenChange={setNovoComentarioAberto}
+        ticketNumero={ticket.numero}
+        onEnviar={handleEnviarComentario}
+      />
+
+      <ApontamentoHorasDialog
+        open={horasDialogAberto}
+        onOpenChange={setHorasDialogAberto}
+        ticketNumero={ticket.numero}
+        apontamentos={apontamentos}
+        timerAberto={timerAberto}
+      />
+
+      <CriarTicketFilhoDialog open={novoFilhoAberto} onOpenChange={setNovoFilhoAberto} paiNumero={ticket.numero} />
+
+      <ConciliarDialog open={conciliarAberto} onOpenChange={setConciliarAberto} principalNumero={ticket.numero} />
     </TooltipProvider>
   )
 }

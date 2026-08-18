@@ -18,11 +18,12 @@ export function StatusBadge({ statusKey, rotulo, className }: StatusBadgeProps) 
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-md border border-border px-2 text-xs font-medium text-foreground",
+        "inline-flex h-6 items-center gap-1.5 rounded-md border border-border px-2 text-xs font-medium",
         className
       )}
+      style={{ color: `var(--${meta.colorVarFg})` }}
     >
-      <Icon className="size-3.5" style={{ color: `var(--${meta.colorVar})` }} aria-hidden="true" />
+      <Icon className="size-3.5" aria-hidden="true" />
       {rotulo ?? meta.rotuloPadrao}
     </span>
   )

@@ -6,6 +6,7 @@ import {
   listarCategoriasAtendimento,
   listarCategoriasProblema,
   listarEmpresas,
+  listarMesasTrabalho,
   listarSlaPolicies,
   listarUsuarios,
 } from "@/lib/tickets/queries"
@@ -13,19 +14,35 @@ import {
 import { PortalShell } from "./portal-shell"
 
 export default async function PortalLayout({ children }: { children: ReactNode }) {
-  const [empresas, usuarios, categoriasAtendimento, categoriasProblema, slaPolicies, usuarioAtual] =
-    await Promise.all([
-      listarEmpresas(),
-      listarUsuarios(),
-      listarCategoriasAtendimento(),
-      listarCategoriasProblema(),
-      listarSlaPolicies(),
-      buscarUsuarioAtual(),
-    ])
+  const [
+    empresas,
+    usuarios,
+    categoriasAtendimento,
+    categoriasProblema,
+    slaPolicies,
+    mesasTrabalho,
+    usuarioAtual,
+  ] = await Promise.all([
+    listarEmpresas(),
+    listarUsuarios(),
+    listarCategoriasAtendimento(),
+    listarCategoriasProblema(),
+    listarSlaPolicies(),
+    listarMesasTrabalho(),
+    buscarUsuarioAtual(),
+  ])
 
   return (
     <ReferenceDataProvider
-      data={{ empresas, usuarios, categoriasAtendimento, categoriasProblema, slaPolicies, usuarioAtual }}
+      data={{
+        empresas,
+        usuarios,
+        categoriasAtendimento,
+        categoriasProblema,
+        slaPolicies,
+        mesasTrabalho,
+        usuarioAtual,
+      }}
     >
       <PortalShell>{children}</PortalShell>
     </ReferenceDataProvider>

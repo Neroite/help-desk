@@ -1,15 +1,18 @@
 "use client"
 
+import { ChevronDown } from "lucide-react"
+
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useReferenceData } from "@/lib/reference-data/provider"
+import { cn } from "@/lib/utils"
 
 interface CategoriaProblemaSelectProps {
   id?: string
@@ -17,51 +20,55 @@ interface CategoriaProblemaSelectProps {
   onValueChange: (value: string) => void
 }
 
-// Bloco idêntico usado na abertura de chamado do analista e do
-// solicitante (2 níveis: categoria-pai > subcategoria) — extraído pra não
-// divergir os dois formulários quando a árvore de categorias mudar. As
-// subcategorias de cada categoria raiz aparecem agrupadas sob um
-// SelectLabel com o nome da categoria pai; raízes sem subcategoria viram
-// elas mesmas um item selecionável, fora de qualquer grupo.
-export function CategoriaProblemaSelect({
-  id = "categoria",
-  value,
-  onValueChange,
-}: CategoriaProblemaSelectProps) {
+// Drill-down: só as categorias raiz aparecem na lista principal; uma raiz
+// com subcategorias abre um submenu ao ser apontada/clicada (mesmo padrão
+// de "Mover para" do Kanban), em vez de despejar categoria e subcategoria
+// juntas numa lista só — ver openspec/specs/chamado-categorizacao
+// (Requirement: Seleção de categoria de problema no chamado usa drill-down).
+export function CategoriaProblemaSelect({ id, value, onValueChange }: CategoriaProblemaSelectProps) {
   const { categoriasProblema } = useReferenceData()
 
   const raizes = categoriasProblema.filter((c) => c.paiId === null)
   const filhosDe = (paiId: string) => categoriasProblema.filter((c) => c.paiId === paiId)
+  const selecionada = categoriasProblema.find((c) => c.id === value)
 
   return (
-    <Select name="catProblemaId" value={value} onValueChange={(v) => onValueChange(v ?? "")}>
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder="Selecione uma categoria">
-          {(value: string) => categoriasProblema.find((c) => c.id === value)?.nome}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        id={id}
+        className={cn(
+          "flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap outline-none select-none",
+          "cursor-pointer transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          !selecionada && "text-muted-foreground"
+        )}
+      >
+        <span className="truncate">{selecionada?.nome ?? "Selecione uma categoria"}</span>
+        <ChevronDown className="size-4 shrink-0 opacity-50" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-(--anchor-width)">
         {raizes.map((raiz) => {
           const filhos = filhosDe(raiz.id)
           if (filhos.length === 0) {
             return (
-              <SelectGroup key={raiz.id}>
-                <SelectItem value={raiz.id}>{raiz.nome}</SelectItem>
-              </SelectGroup>
+              <DropdownMenuItem key={raiz.id} onClick={() => onValueChange(raiz.id)}>
+                {raiz.nome}
+              </DropdownMenuItem>
             )
           }
           return (
-            <SelectGroup key={raiz.id}>
-              <SelectLabel>{raiz.nome}</SelectLabel>
-              {filhos.map((filho) => (
-                <SelectItem key={filho.id} value={filho.id}>
-                  {filho.nome}
-                </SelectItem>
-              ))}
-            </SelectGroup>
+            <DropdownMenuSub key={raiz.id}>
+              <DropdownMenuSubTrigger>{raiz.nome}</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {filhos.map((filho) => (
+                  <DropdownMenuItem key={filho.id} onClick={() => onValueChange(filho.id)}>
+                    {filho.nome}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           )
         })}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
