@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { LayoutGrid, List, Plus } from "lucide-react"
 import { toast } from "sonner"
 
-import { AtribuirTecnicoDialog } from "@/components/chamado/atribuir-tecnico-dialog"
 import { BulkActionBar } from "@/components/chamado/bulk-action-bar"
 import { FiltroBar, FiltroChips } from "@/components/chamado/filtro-bar"
 import { useNovoChamado } from "@/components/chamado/novo-chamado-dialog"
@@ -20,7 +19,7 @@ import { useEstadoSincronizado } from "@/lib/hooks/use-estado-sincronizado"
 import { aguardandoAnalista, colunasDoKanban } from "@/lib/kanban/colunas"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh"
-import { calcularSeveridade } from "@/lib/sla-display"
+import { calcularProgressoSla } from "@/lib/sla-display"
 import { useSlaClock } from "@/lib/sla-clock"
 import { atribuirAnalista, definirPrioridade, mudarStatus } from "@/lib/tickets/actions"
 import { PRIORIDADE_META, STATUS_META } from "@/lib/status"
@@ -34,8 +33,8 @@ import {
   type Usuario,
 } from "@/lib/types"
 
-// dnd-kit (usado só pelo Kanban) fica fora do bundle inicial de quem abre
-// a fila em lista — carrega sob demanda na primeira vez que `view=kanban`.
+// Kanban fica fora do bundle inicial de quem abre a fila em lista — carrega
+// sob demanda na primeira vez que `view=kanban`.
 const KanbanBoard = dynamic(
   () => import("@/components/chamado/kanban-board").then((mod) => mod.KanbanBoard),
   { loading: () => <ChamadosSkeleton />, ssr: false }
@@ -51,6 +50,7 @@ interface FiltrosAtivos {
   empresa: string | null
   categoria: string | null
   analistaEfetivo: string | null
+  mesa: string | null
   sla: string | null
   criado: string | null
   status: StatusKey | null
@@ -99,12 +99,13 @@ function ticketPassaFiltros(
   }
 
   if (f.analistaEfetivo && ticket.analistaId !== f.analistaEfetivo) return false
+  if (f.mesa && ticket.mesaId !== f.mesa) return false
   if (f.status && ticket.statusKey !== f.status) return false
   if (f.aberto && STATUS_FINAIS.includes(ticket.statusKey)) return false
   if (f.semCategoria && ticket.catProblemaId !== null) return false
 
   if (f.sla && f.agora) {
-    const severidade = calcularSeveridade(ticket.slaSolucaoVenceEm, ticket.statusKey, f.agora)
+    const { severidade } = calcularProgressoSla(ticket, "solucao", f.agora)
     const alvo = f.sla === "prestes" ? "critico" : f.sla
     if (severidade !== alvo) return false
   }
@@ -174,7 +175,6 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   const [timersAtivos, setTimersAtivos] = useState<Set<number>>(new Set())
   const [previewTicket, setPreviewTicket] = useState<Ticket | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [tecnicoDialog, setTecnicoDialog] = useState<{ numero: number; destino: StatusKey } | null>(null)
 
   // Fila inteira já é escopada por RLS (analista vê tudo, solicitante só a
   // própria empresa) — sem filtro, então cobre qualquer mudança de status
@@ -190,6 +190,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
   const buscaFiltro = searchParams.get("busca")
   const solicitanteFiltro = searchParams.get("solicitante")
   const categoriaFiltro = searchParams.get("categoria")
+  const mesaFiltro = searchParams.get("mesa")
   const slaFiltro = searchParams.get("sla")
   const criadoFiltro = searchParams.get("criado")
   const abertoFiltro = searchParams.get("aberto") === "1"
@@ -220,6 +221,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
             empresa: empresaFiltro,
             categoria: categoriaFiltro,
             analistaEfetivo: analistaIdEfetivo,
+            mesa: mesaFiltro,
             sla: slaFiltro,
             criado: criadoFiltro,
             status: statusFiltro,
@@ -275,33 +277,6 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
 
   function aplicarLocal(numero: number, patch: Partial<Ticket>) {
     setLocalTickets((prev) => prev.map((t) => (t.numero === numero ? { ...t, ...patch } : t)))
-  }
-
-  function handleStatusChange(numero: number, novoStatus: StatusKey) {
-    const statusAnterior = localTickets.find((t) => t.numero === numero)?.statusKey
-    aplicarLocal(numero, { statusKey: novoStatus })
-    const rotulo = statusRotulos?.[novoStatus] ?? STATUS_META[novoStatus].rotuloPadrao
-    mudarStatus(numero, novoStatus)
-      .then(() => toast.success(`Chamado #${numero} movido para "${rotulo}".`))
-      .catch(() => {
-        // Reverte o card pra coluna original — sem isso, uma gravação que
-        // falha deixa o kanban mentindo sobre o status até o próximo refresh.
-        if (statusAnterior) aplicarLocal(numero, { statusKey: statusAnterior })
-        toast.error(`Não foi possível mover o chamado #${numero}.`)
-      })
-  }
-
-  // Kanban recusou o drop por falta de técnico (dropPermitido devolveu
-  // "exige-tecnico") -- abre o diálogo em vez de mover direto; o diálogo
-  // chama atribuirEMover e, no sucesso, cai em handleAtribuirSucesso.
-  function handleExigeTecnico(numero: number, destino: StatusKey) {
-    setTecnicoDialog({ numero, destino })
-  }
-
-  function handleAtribuirSucesso(numero: number, analistaId: string, destino: StatusKey) {
-    aplicarLocal(numero, { analistaId, statusKey: destino })
-    const rotulo = statusRotulos?.[destino] ?? STATUS_META[destino].rotuloPadrao
-    toast.success(`Chamado #${numero} atribuído e movido para "${rotulo}".`)
   }
 
   function handleQuickEditChange(
@@ -468,12 +443,7 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
             </Button>
           </div>
         ) : view === "kanban" ? (
-          <KanbanBoard
-            tickets={filtrados}
-            colunas={colunasKanban}
-            onStatusChange={handleStatusChange}
-            onExigeTecnico={handleExigeTecnico}
-          />
+          <KanbanBoard tickets={filtrados} colunas={colunasKanban} />
         ) : (
           <>
             <div className="hidden md:block">
@@ -491,36 +461,6 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
                 runningTimers={timersAtivos}
                 onToggleTimer={handleToggleTimer}
               />
-
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                <span>
-                  Mostrando {totalItens === 0 ? 0 : inicioIndice + 1} a{" "}
-                  {Math.min(inicioIndice + PAGE_SIZE, totalItens)} de {totalItens} itens
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="cursor-pointer"
-                    disabled={paginaAtual <= 1}
-                    onClick={() => updateParam({ page: String(paginaAtual - 1) })}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="font-tabular px-1">
-                    Página {paginaAtual} de {totalPaginas}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="cursor-pointer"
-                    disabled={paginaAtual >= totalPaginas}
-                    onClick={() => updateParam({ page: String(paginaAtual + 1) })}
-                  >
-                    Próxima
-                  </Button>
-                </div>
-              </div>
             </div>
 
             <div className="flex flex-col gap-2 md:hidden">
@@ -528,22 +468,42 @@ function ChamadosContent({ tickets: ticketsIniciais }: { tickets: Ticket[] }) {
                 <TicketCard key={ticket.numero} ticket={ticket} />
               ))}
             </div>
+
+            {/* Paginação compartilhada por lista e cards mobile — antes só
+                existia dentro do ramo desktop, deixando a visão de cards sem
+                jeito nenhum de ver o restante dos itens. */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+              <span>
+                Mostrando {totalItens === 0 ? 0 : inicioIndice + 1} a{" "}
+                {Math.min(inicioIndice + PAGE_SIZE, totalItens)} de {totalItens} itens
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  disabled={paginaAtual <= 1}
+                  onClick={() => updateParam({ page: String(paginaAtual - 1) })}
+                >
+                  Anterior
+                </Button>
+                <span className="font-tabular px-1">
+                  Página {paginaAtual} de {totalPaginas}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  disabled={paginaAtual >= totalPaginas}
+                  onClick={() => updateParam({ page: String(paginaAtual + 1) })}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
           </>
         )}
       </div>
-
-      <AtribuirTecnicoDialog
-        open={tecnicoDialog !== null}
-        onOpenChange={(open) => {
-          if (!open) setTecnicoDialog(null)
-        }}
-        ticketNumero={tecnicoDialog?.numero ?? null}
-        destino={tecnicoDialog?.destino ?? null}
-        rotuloDestino={
-          tecnicoDialog ? (statusRotulos?.[tecnicoDialog.destino] ?? STATUS_META[tecnicoDialog.destino].rotuloPadrao) : ""
-        }
-        onSucesso={handleAtribuirSucesso}
-      />
 
       <BulkActionBar
         count={selecionados.size}

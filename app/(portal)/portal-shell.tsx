@@ -80,7 +80,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         <form
           onSubmit={handleBuscaSubmit}
           role="search"
-          className="relative ml-2 w-full max-w-xs"
+          className="relative ml-2 min-w-0 flex-1 sm:max-w-xs"
         >
           <Search
             aria-hidden="true"
@@ -101,10 +101,11 @@ export function PortalShell({ children }: { children: ReactNode }) {
             render={<Link href="/portal/novo" />}
             nativeButton={false}
             size="sm"
+            aria-label="Abrir chamado"
             className="cursor-pointer"
           >
             <Plus className="size-4" data-icon="inline-start" aria-hidden="true" />
-            Abrir chamado
+            <span className="hidden sm:inline">Abrir chamado</span>
           </Button>
 
           <ThemeToggle />

@@ -1,28 +1,99 @@
+import { minutosUteisEntre } from "@/lib/sla/calendario"
 import type { SlaSeveridade, StatusKey } from "@/lib/types"
-import { STATUS_PAUSA_SLA } from "@/lib/types"
+import { STATUS_FINAIS, STATUS_PAUSA_SLA } from "@/lib/types"
 
-// Cálculo de severidade para exibição (SlaBadge). Não é o motor de SLA de
-// verdade — esse mora em lib/sla/ (fase 1), com calendário de horário
-// comercial e testes densos. Aqui é só "quanto falta, visualmente".
-export function calcularSeveridade(
-  venceEm: string | null,
-  statusKey: StatusKey,
-  agora: Date
-): SlaSeveridade {
-  if (STATUS_PAUSA_SLA.includes(statusKey)) return "pausado"
-  if (!venceEm) return "ok"
+// Campos do ticket usados pra exibição de SLA — subconjunto de Ticket,
+// aceito estruturalmente por qualquer chamador que já tenha o ticket
+// inteiro em mãos (ver components/chamado/sla-progress.tsx e sla-badge.tsx).
+export interface TicketSlaInfo {
+  criadoEm: string
+  statusKey: StatusKey
+  slaPausadoEm: string | null
+  slaMinutosPausados: number
+  primeiraRespostaEm: string | null
+  finalizadoEm: string | null
+  slaRespostaVenceEm: string | null
+  slaSolucaoVenceEm: string | null
+}
 
-  const restanteMs = new Date(venceEm).getTime() - agora.getTime()
-  if (restanteMs <= 0) return "estourado"
+export type SlaTipo = "resposta" | "solucao"
 
-  const restanteMin = restanteMs / 60_000
-  if (restanteMin <= 15) return "critico"
+export interface SlaProgresso {
+  percentual: number
+  severidade: SlaSeveridade
+  // Instante que o texto de contagem (formatarTempoRestante) deve usar no
+  // lugar de "agora" — igual a `agora` enquanto o SLA está ativo, mas
+  // congela no momento da pausa ou do encerramento, senão o badge mostra
+  // uma contagem regressiva "ao vivo" para um prazo que já parou de contar.
+  agoraEfetivo: Date
+}
 
-  // Sem o prazo total à mão aqui (é derivado da política, não do ticket),
-  // usamos um corte fixo de 60min como "atenção" — suficiente para o mock.
-  if (restanteMin <= 60) return "atencao"
+function venceEmDoTipo(ticket: TicketSlaInfo, tipo: SlaTipo): string | null {
+  return tipo === "resposta" ? ticket.slaRespostaVenceEm : ticket.slaSolucaoVenceEm
+}
 
-  return "ok"
+// Resposta encerra em primeira_resposta_em; solução encerra em
+// finalizado_em. Um ticket finalizado sem nunca ter tido resposta pública
+// (ex.: cancelado direto) também congela a barra de resposta — não há mais
+// nada que vá acontecer com ela.
+function encerradoEmDoTipo(ticket: TicketSlaInfo, tipo: SlaTipo): string | null {
+  if (tipo === "solucao") return ticket.finalizadoEm
+  if (ticket.primeiraRespostaEm) return ticket.primeiraRespostaEm
+  return STATUS_FINAIS.includes(ticket.statusKey) ? ticket.finalizadoEm : null
+}
+
+// Progresso e severidade de UM dos dois prazos (resposta OU solução) de um
+// ticket, em minutos úteis — não é o motor de SLA de verdade (esse mora em
+// lib/sla/, com testes densos); aqui é só "quanto da barra pintar".
+//
+// slaMinutosPausados é um único contador compartilhado pelos dois prazos
+// (o motor empurra slaRespostaVenceEm E slaSolucaoVenceEm juntos a cada
+// retomada — ver lib/sla/prazos.ts#aplicarRetomada). Isso significa que,
+// se uma pausa acontecer DEPOIS da primeira resposta mas ANTES da
+// finalização, o cálculo do prazo de resposta (já encerrado) desconta uma
+// pausa que não é dele. Mesma simplificação do motor — não é escopo deste
+// change resolver (exigiria separar o contador em dois campos no banco).
+export function calcularProgressoSla(ticket: TicketSlaInfo, tipo: SlaTipo, agora: Date): SlaProgresso {
+  const venceEm = venceEmDoTipo(ticket, tipo)
+  if (!venceEm) return { percentual: 0, severidade: "ok", agoraEfetivo: agora }
+
+  const encerradoEm = encerradoEmDoTipo(ticket, tipo)
+  const pausado = !encerradoEm && STATUS_PAUSA_SLA.includes(ticket.statusKey)
+
+  // Congela no instante do encerramento; senão no instante da pausa; senão
+  // segue o relógio.
+  const momentoReferencia = encerradoEm
+    ? new Date(encerradoEm)
+    : pausado && ticket.slaPausadoEm
+      ? new Date(ticket.slaPausadoEm)
+      : agora
+
+  const inicio = new Date(ticket.criadoEm)
+  const fim = new Date(venceEm)
+  // `venceEm` já vem empurrado pelos minutos pausados (aplicarRetomada
+  // soma os dois juntos) — então minutosUteisEntre(inicio, fim) conta
+  // relógio corrido, não minutos "úteis" de verdade. Descontar
+  // slaMinutosPausados dos dois lados (total e decorrido) devolve o
+  // orçamento e o consumo na mesma base: só tempo em que o chamado esteve
+  // de fato ativo.
+  const minutosTotais = minutosUteisEntre(inicio, fim) - ticket.slaMinutosPausados
+  const minutosDecorridos = minutosUteisEntre(inicio, momentoReferencia) - ticket.slaMinutosPausados
+  const percentualBase = minutosTotais > 0 ? (minutosDecorridos / minutosTotais) * 100 : 100
+  const percentual = Math.min(100, Math.max(0, percentualBase))
+
+  const estourado = !encerradoEm && !pausado && agora.getTime() >= fim.getTime()
+
+  const severidade: SlaSeveridade = pausado
+    ? "pausado"
+    : estourado
+      ? "estourado"
+      : percentual >= 90
+        ? "critico"
+        : percentual >= 75
+          ? "atencao"
+          : "ok"
+
+  return { percentual: estourado ? 100 : percentual, severidade, agoraEfetivo: momentoReferencia }
 }
 
 export function formatarTempoRestante(venceEm: string | null, agora: Date): string {

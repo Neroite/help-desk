@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { X } from "lucide-react"
+import { ListFilter, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { STATUS_META } from "@/lib/status"
 import type { StatusKey } from "@/lib/types"
@@ -43,7 +44,7 @@ const TEXT_FILTROS = [
 export function FiltroBar() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { usuarios, empresas, categoriasProblema } = useReferenceData()
+  const { usuarios, empresas, categoriasProblema, mesasTrabalho } = useReferenceData()
 
   const analistas = useMemo(() => usuarios.filter((u) => u.papel === "analista"), [usuarios])
   const solicitantes = useMemo(() => usuarios.filter((u) => u.papel === "solicitante"), [usuarios])
@@ -62,10 +63,11 @@ export function FiltroBar() {
       { param: "empresa", label: "Cliente", opcoes: empresas.map((e) => ({ value: e.id, label: e.nome })) },
       { param: "categoria", label: "Categoria", opcoes: categoriaOpcoes },
       { param: "analista", label: "Operador", opcoes: operadorOpcoes },
+      { param: "mesa", label: "Mesa", opcoes: mesasTrabalho.map((m) => ({ value: m.id, label: m.nome })) },
       { param: "sla", label: "Resposta / Solução", opcoes: slaOpcoes },
       { param: "criado", label: "Criado", opcoes: criadoOpcoes },
     ] as const
-  }, [analistas, solicitantes, empresas, categoriasProblema])
+  }, [analistas, solicitantes, empresas, categoriasProblema, mesasTrabalho])
 
   function setParam(param: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString())
@@ -82,8 +84,8 @@ export function FiltroBar() {
     TEXT_FILTROS.some((f) => searchParams.get(f.param)) ||
     selectFiltros.some((f) => searchParams.get(f.param))
 
-  return (
-    <div className="flex flex-wrap items-center gap-2">
+  const controles = (
+    <>
       {TEXT_FILTROS.map((filtro) => (
         <TextFiltro key={filtro.param} param={filtro.param} label={filtro.label} setParam={setParam} />
       ))}
@@ -98,7 +100,7 @@ export function FiltroBar() {
               que um valor é selecionado -- só o texto da opção aparece. O
               aria-label fixo garante que o nome do filtro continue anunciado
               por leitor de tela mesmo com um valor selecionado. */}
-          <SelectTrigger className="h-8 w-40 text-xs" aria-label={filtro.label}>
+          <SelectTrigger className="h-8 w-40 text-xs md:w-40" aria-label={filtro.label}>
             <SelectValue placeholder={filtro.label}>
               {(value: string) =>
                 value === "todos"
@@ -130,7 +132,41 @@ export function FiltroBar() {
           Limpar filtros
         </Button>
       )}
-    </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Telas largas: filtros inline, quebrando linha se precisar. */}
+      <div className="hidden flex-wrap items-center gap-2 md:flex">{controles}</div>
+
+      {/* Abaixo de 768px os filtros não cabem lado a lado — viram um Sheet
+          disparado por um único botão, em vez de empilhar 6 controles e
+          empurrar a lista pra baixo da dobra. */}
+      <div className="md:hidden">
+        <Sheet>
+          <SheetTrigger
+            render={
+              <Button variant="outline" size="sm" className="h-8 cursor-pointer gap-1.5 text-xs" />
+            }
+          >
+            <ListFilter className="size-3.5" aria-hidden="true" />
+            Filtros
+            {filtrosAtivos && (
+              <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                •
+              </span>
+            )}
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Filtros</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-2 px-4 pb-4">{controles}</div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
   )
 }
 
@@ -181,7 +217,7 @@ const CHIP_PARAMS_IGNORADOS = new Set(["view", "sort", "dir", "page"])
 export function FiltroChips() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { usuarios, empresas, categoriasProblema } = useReferenceData()
+  const { usuarios, empresas, categoriasProblema, mesasTrabalho } = useReferenceData()
 
   const analistas = useMemo(() => usuarios.filter((u) => u.papel === "analista"), [usuarios])
   const solicitantes = useMemo(() => usuarios.filter((u) => u.papel === "solicitante"), [usuarios])
@@ -218,6 +254,8 @@ export function FiltroChips() {
             ? "Operador: meus chamados"
             : `Operador: ${analistas.find((a) => a.id === valor)?.nome ?? valor}`,
       })
+    else if (param === "mesa")
+      chips.push({ param, rotulo: `Mesa: ${mesasTrabalho.find((m) => m.id === valor)?.nome ?? valor}` })
     else if (param === "sla")
       chips.push({ param, rotulo: `SLA: ${slaOpcoes.find((o) => o.value === valor)?.label ?? valor}` })
     else if (param === "criado")

@@ -92,8 +92,8 @@ export function TicketPreviewSheet({ ticket, open, onOpenChange }: TicketPreview
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge statusKey={ticket.statusKey} />
                 <PrioridadeBadge prioridade={ticket.prioridade} />
-                <SlaBadge rotulo="Resposta" venceEm={ticket.slaRespostaVenceEm} statusKey={ticket.statusKey} />
-                <SlaBadge rotulo="Solução" venceEm={ticket.slaSolucaoVenceEm} statusKey={ticket.statusKey} />
+                <SlaBadge rotulo="Resposta" ticket={ticket} tipo="resposta" />
+                <SlaBadge rotulo="Solução" ticket={ticket} tipo="solucao" />
               </div>
 
               <p className="text-sm text-muted-foreground">{ticket.descricao}</p>

@@ -123,7 +123,7 @@
   --foreground: #0f172a;
   --muted-foreground: #64748b;
   --muted-fg: #64748b;
-  --border: #e2e8f0;
+  --border: #cbd5e1; /* escurecido de #e2e8f0 — borda de card/checkbox quase invisível sobre --surface */
   --destructive: #dc2626;
   --ring: #1e40af;
 
@@ -144,18 +144,25 @@
      "verde = concluído"). Contraste calculado sobre #ffffff.
      "-fg" é a variante usada como cor de TEXTO pequeno (StatusBadge),
      onde o vibrante sozinho não bate 4.5:1. */
-  --status-aguardando: #ea580c; /* 3.64:1 — teto vibrante da família laranja/âmbar */
-  --status-aguardando-fg: #c2410c; /* 5.22:1 */
-  --status-a-fazer: #ef4444; /* 3.79:1 */
-  --status-a-fazer-fg: #dc2626; /* 4.87:1 */
-  --status-andamento: #16a34a; /* 3.30:1 */
-  --status-andamento-fg: #15803d; /* 5.02:1 */
-  --status-pausado: #8b5cf6; /* 4.25:1 */
-  --status-pausado-fg: #7c3aed; /* 5.74:1 */
+  /* Paleta alinhada à referência Milvus (A FAZER coral, ATENDENDO verde,
+     PAUSADOS amarelo, EXPIRADO laranja — troca "pausado" de violeta pra
+     amarelo, que era a maior divergência visual apontada). "-fg" é uma
+     variante escura da mesma família, calculada pra >=4.5:1 sobre branco. */
+  --status-aguardando: #ea7c34; /* laranja — afastado do amarelo de "pausado" de propósito (~40° x ~27° de matiz), senão as duas colunas ficam indistinguíveis */
+  --status-aguardando-fg: #a4530f; /* 5.50:1 */
+  --status-a-fazer: #f4645f; /* coral "A fazer" do Milvus — 3.07:1, só ícone */
+  --status-a-fazer-fg: #c93a35; /* 5.08:1 */
+  --status-andamento: #3dd07e; /* verde "Atendendo" do Milvus — 2.0:1, só ícone */
+  --status-andamento-fg: #1a7a49; /* 5.35:1 */
+  --status-pausado: #f5c64a; /* amarelo "Pausados" do Milvus — 1.7:1, só ícone */
+  --status-pausado-fg: #92660a; /* 5.09:1 */
   --status-finalizado: #111827; /* 17.74:1 — não usar --foreground (#0f172a), precisa se distinguir dele */
   --status-finalizado-fg: #111827;
   --status-cancelado: #64748b; /* 4.77:1 */
   --status-cancelado-fg: #64748b;
+  /* Cabeçalho da coluna derivada do Kanban ("Última interação do cliente")
+     — ciano do Milvus, escurecido até bater 4.5:1 com texto branco. */
+  --kanban-derivada-solid: #0a7891;
 
   /* "-solid": fundo cheio de badge/cabeçalho com texto BRANCO por cima —
      diferente do par "-fg" acima (pensado como cor de TEXTO sobre a
@@ -164,10 +171,10 @@
      senão "Finalizado" viraria quase branco com texto branco em cima no
      tema escuro. Reaproveita os mesmos hex do par "-fg" do light (já
      documentados >= 4.5:1 contra branco, e contraste é simétrico). */
-  --status-aguardando-solid: #c2410c;
-  --status-a-fazer-solid: #dc2626;
-  --status-andamento-solid: #15803d;
-  --status-pausado-solid: #7c3aed;
+  --status-aguardando-solid: #a4530f;
+  --status-a-fazer-solid: #c93a35;
+  --status-andamento-solid: #1a7a49;
+  --status-pausado-solid: #92660a;
   --status-finalizado-solid: #111827;
   --status-cancelado-solid: #64748b;
   /* Prioridade "média" não tem par de status equivalente — âmbar-700,
@@ -233,7 +240,9 @@
   --card-foreground: var(--foreground);
   --popover: var(--surface);
   --popover-foreground: var(--foreground);
-  --muted: #1e293b;
+  /* Antes idêntico a --surface/--card (#1e293b) — qualquer bg-muted/hover
+     de linha sumia por cima do card. Um degrau mais claro que a superfície. */
+  --muted: #27354a;
   --input: var(--border);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -246,14 +255,14 @@
   /* Status do chamado — par escuro. No dark todos os valores já passam
      4.5:1 sozinhos sobre --surface, então "-fg" repete o vibrante em vez
      de ganhar um segundo hex. */
-  --status-aguardando: #fb923c; /* 6.46:1 */
-  --status-aguardando-fg: #fb923c;
-  --status-a-fazer: #f87171; /* 5.25:1 */
-  --status-a-fazer-fg: #f87171;
-  --status-andamento: #4ade80; /* 8.30:1 */
-  --status-andamento-fg: #4ade80;
-  --status-pausado: #a78bfa; /* 5.38:1 */
-  --status-pausado-fg: #a78bfa;
+  --status-aguardando: #f0923f; /* 6.19:1 — laranja, afastado do amarelo de "pausado" */
+  --status-aguardando-fg: #f0923f;
+  --status-a-fazer: #f4645f; /* 4.76:1 */
+  --status-a-fazer-fg: #f4645f;
+  --status-andamento: #3dd07e; /* 7.33:1 */
+  --status-andamento-fg: #3dd07e;
+  --status-pausado: #f5c64a; /* 9.09:1 */
+  --status-pausado-fg: #f5c64a;
   --status-finalizado: #f1f5f9; /* 13.34:1 — quase branco; distingue de --cancelado pela luminância */
   --status-finalizado-fg: #f1f5f9;
   --status-cancelado: #94a3b8; /* 5.70:1 */

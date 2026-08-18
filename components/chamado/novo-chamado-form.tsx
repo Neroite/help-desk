@@ -36,12 +36,13 @@ interface NovoChamadoFormProps {
 // nome do cliente, feita pelo analista: não pede prioridade nem categoria
 // de atendimento, isso é decidido no triage.
 export function NovoChamadoForm({ formId, onCriado, onSujoChange }: NovoChamadoFormProps) {
-  const { empresas, usuarios } = useReferenceData()
+  const { empresas, usuarios, mesasTrabalho } = useReferenceData()
   const [titulo, setTitulo] = useState("")
   const [descricao, setDescricao] = useState("")
   const [empresaId, setEmpresaId] = useState("")
   const [solicitanteId, setSolicitanteId] = useState("")
   const [catProblemaId, setCatProblemaId] = useState("")
+  const [mesaId, setMesaId] = useState("")
   const [tentouEnviar, setTentouEnviar] = useState(false)
   const [enviando, setEnviando] = useState(false)
 
@@ -81,6 +82,7 @@ export function NovoChamadoForm({ formId, onCriado, onSujoChange }: NovoChamadoF
         empresaId,
         solicitanteId,
         catProblemaId: catProblemaId || null,
+        mesaId: mesaId || null,
       })
       onCriado(numero)
     } catch {
@@ -188,6 +190,28 @@ export function NovoChamadoForm({ formId, onCriado, onSujoChange }: NovoChamadoF
             Categoria do problema <span className="font-normal text-muted-foreground">(opcional)</span>
           </FieldLabel>
           <CategoriaProblemaSelect value={catProblemaId} onValueChange={setCatProblemaId} />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="mesa">
+            Mesa de trabalho <span className="font-normal text-muted-foreground">(opcional)</span>
+          </FieldLabel>
+          <Select name="mesaId" value={mesaId} onValueChange={(value) => setMesaId(value ?? "")}>
+            <SelectTrigger id="mesa" className="w-full">
+              <SelectValue placeholder="Selecione a mesa">
+                {(value: string) => mesasTrabalho.find((m) => m.id === value)?.nome}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {mesasTrabalho.map((mesa) => (
+                  <SelectItem key={mesa.id} value={mesa.id}>
+                    {mesa.nome}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </Field>
       </FieldGroup>
     </form>

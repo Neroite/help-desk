@@ -34,6 +34,9 @@ function ticketBase(overrides: Partial<Ticket> = {}): Ticket {
     slaMinutosPausados: 0,
     ultimaInteracaoEm: null,
     ultimaInteracaoPapel: null,
+    paiId: null,
+    conciliadoNoId: null,
+    mesaId: null,
     ...overrides,
   }
 }
