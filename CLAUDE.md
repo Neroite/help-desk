@@ -54,11 +54,21 @@ Três papéis: `admin`, `analista`, `solicitante`. Toda a guarda está em `middl
   o segundo só lê o cookie e aceitaria um token já revogado.
 - Busca o papel em `helpdesk.usuario` e aplica `redirectPorPapel()`: solicitante vive em
   `/portal`, staff em `/chamados`. Um papel no shell errado é redirecionado.
-- Rotas públicas: `/login` e `/avaliar/*` (link de avaliação por token opaco).
+- Rotas públicas: `/`, `/landing`, `/login`, `/robots.txt`, `/sitemap.xml` e `/avaliar/*`
+  (link de avaliação por token opaco).
+- `/` e `/landing` servem a mesma landing pública (`app/(site)/`), mas com regras
+  diferentes: em `/`, quem tem sessão é redirecionado para o shell do papel; `/landing`
+  fica fora dessa regra de propósito — é o único jeito de abrir a landing estando logado.
+  Essa checagem precisa rodar **antes** das regras de redirect por papel no middleware,
+  senão um solicitante logado vê a landing em vez de cair no `/portal`.
+- Pageview anônimo (sem cookie `sb-*`) em `/`, `/landing`, `/robots.txt` ou `/sitemap.xml`
+  pula a chamada ao Auth (`getUser()`) inteira — evita um round-trip por request de
+  crawler ou visitante deslogado na página mais acessada do site.
 - `/logout` passa direto para o route handler antes da guarda de shell, senão o
   solicitante voltaria para `/portal` sem o `signOut()` rodar.
 
-Daí os dois shells: `app/(app)/` (staff) e `app/(portal)/` (cliente).
+Daí os três shells: `app/(site)/` (landing pública "Aegis"), `app/(app)/` (staff) e
+`app/(portal)/` (cliente).
 
 ### Dado de referência via Context
 
@@ -123,6 +133,25 @@ faz e como conferir que nada ficou de fora.
 Detalhe recorrente: Postgres não permite usar um valor de enum recém-criado na mesma
 transação — adicionar valor e usá-lo exigem migrations separadas.
 
+### Relatórios (fase 8)
+
+`lib/relatorios/` — módulos puros, mesma linha de `lib/sla/`. `metricas.ts` agrupa
+tickets por analista/empresa (total, abertos, finalizados, tempo médio de resposta e
+solução em minutos úteis via `lib/sla/calendario`, % de cumprimento de SLA — cancelado
+fica fora da estatística). `csv.ts` gera o CSV como string pura (sem BOM: quem grava o
+Blob prefixa `﻿`, não este módulo). Renderizado em `RelatorioTabela`
+(`components/dashboard/`) e no botão "Exportar CSV" do dashboard.
+
+## Agentes de revisão de código
+
+`.claude/agents/` tem um orquestrador (`revisao-lead`, opus) e seis subagentes sonnet
+(`auditor-intencao`, `auditor-bugs`, `auditor-enfeites`, `corretor-lote`,
+`verificador-build`, `verificador-runtime`) para auditar o help desk: separam bug real de
+stub pré-backend declarado e de enfeite não-declarado, sempre com citação literal do
+código, e só corrigem depois de aprovação humana explícita. Contrato completo em
+`openspec/specs/code-review-agents/spec.md`. Não invoque os subagentes diretamente — só
+via `revisao-lead`.
+
 ## Convenções
 
 - **Domínio em português** (`chamado`, `apontamento`, `prazo`, `papel`), inclusive em
@@ -136,25 +165,18 @@ Há worktrees git em `.claude/worktrees/`, cada uma com uma cópia inteira do pr
 (e seu próprio `.next`). Elas são invisíveis ao git (`.git/info/exclude`) mas não às
 ferramentas: ESLint (`.claude/**`, `**/.next/**`) e Vitest (`exclude: [".claude/**"]`)
 já as ignoram explicitamente. Se um comando começar a acusar centenas de erros em
-arquivos gerados, ou a suíte inflar para bem mais que os 7 arquivos de teste reais,
+arquivos gerados, ou a suíte inflar para bem mais que os 10 arquivos de teste reais,
 é isso — corrija o ignore, não os arquivos.
 
 `next.config.ts` fixa `turbopack.root` pelo mesmo motivo: sem isso o Next infere a raiz
 errada e passa a observar a árvore inteira do repositório pai.
 
-### Relatórios (fase 8)
-
-`lib/relatorios/` — módulos puros, mesma linha de `lib/sla/`. `metricas.ts` agrupa
-tickets por analista/empresa (total, abertos, finalizados, tempo médio de resposta e
-solução em minutos úteis via `lib/sla/calendario`, % de cumprimento de SLA — cancelado
-fica fora da estatística). `csv.ts` gera o CSV como string pura (sem BOM: quem grava o
-Blob prefixa `﻿`, não este módulo). Renderizado em `RelatorioTabela`
-(`components/dashboard/`) e no botão "Exportar CSV" do dashboard.
-
 ## Roadmap
 
 Fases 0–6 e 8 entregues (scaffold/auth, motor de SLA, CRUD + timeline, Kanban +
 realtime, apontamento de horas, anexos, avaliação por token, dashboard/relatórios/CSV).
+Além das fases numeradas: landing pública em `/` (change `landing-aegis`) e o tooling de
+agentes de revisão de código (change `code-review-agents`) também entregues.
 
 Fase 7 (e-mail transacional + job de alerta de SLA) **adiada por decisão do usuário**
 (2026-08-17) — não é trabalho ativo nem pendência a resolver agora. Retomar só quando
