@@ -17,6 +17,7 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "Help-Desk",
   description: "Sistema de help desk / gestão de tickets.",
 };
