@@ -107,6 +107,28 @@
   --text-xl--line-height: 26px;
   --text-2xl: 24px;
   --text-2xl--line-height: 30px;
+
+  /* Landing (Aegis) — escala de display ADITIVA. Só chaves novas: nada
+     acima muda de valor. Dentro de @theme inline o Tailwind INLINA o
+     literal (.text-base{font-size:14px}), então redefinir --text-base..2xl
+     num wrapper não funcionaria — por isso a landing ganha classes
+     próprias em vez de tentar re-escopar a escala densa do dashboard.
+     Ver design-system/help-desk/pages/landing.md. */
+  --text-eyebrow: 13px;
+  --text-eyebrow--line-height: 18px;
+  --text-lead: clamp(16px, 0.55vw + 14px, 19px);
+  --text-lead--line-height: 1.65;
+  --text-d3: clamp(19px, 0.9vw + 16px, 24px);
+  --text-d3--line-height: 1.35;
+  --text-d2: clamp(26px, 2.4vw + 17px, 40px);
+  --text-d2--line-height: 1.18;
+  --text-d1: clamp(34px, 4.6vw + 17px, 60px);
+  --text-d1--line-height: 1.05;
+
+  /* Sem fonte de display separada: títulos da landing usam a mesma Fira
+     Sans do corpo (bold), a voz tipográfica que já é do produto real —
+     Plus Jakarta Sans foi removida por ser o padrão genérico de "SaaS". */
+  --font-display: var(--font-fira-sans);
 }
 
 :root {
