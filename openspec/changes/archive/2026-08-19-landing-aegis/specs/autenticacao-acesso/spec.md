@@ -2,9 +2,9 @@
 
 ### Requirement: Login com identificação de papel
 O sistema SHALL exigir autenticação por e-mail e senha para acessar qualquer rota que não
-seja a de login, a de avaliação por token, ou a landing pública em `/`. Toda pessoa
-autenticada SHALL ter exatamente um papel entre `admin`, `analista` e `solicitante`, e todo
-`solicitante` SHALL estar vinculado a uma empresa.
+seja a de login, a de avaliação por token, ou a landing pública (`/` e `/landing`). Toda
+pessoa autenticada SHALL ter exatamente um papel entre `admin`, `analista` e
+`solicitante`, e todo `solicitante` SHALL estar vinculado a uma empresa.
 
 #### Scenario: Acesso sem sessão
 - **WHEN** uma requisição sem sessão válida atinge qualquer rota protegida
@@ -12,7 +12,7 @@ autenticada SHALL ter exatamente um papel entre `admin`, `analista` e `solicitan
   original para retomar após a autenticação
 
 #### Scenario: Acesso à landing pública sem sessão
-- **WHEN** uma requisição sem sessão válida atinge `/`
+- **WHEN** uma requisição sem sessão válida atinge `/` ou `/landing`
 - **THEN** o sistema SHALL responder com a landing page, sem redirecionar para o login
 
 #### Scenario: Credenciais inválidas

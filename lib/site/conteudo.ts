@@ -1,6 +1,7 @@
 // Copy da landing pública, centralizada para revisão num arquivo só.
-// Regra: só descreve o que o produto entrega hoje (fases 0-6). Nada de
-// e-mail, alerta de SLA, relatórios (fases 7-8), IA, chatbot, WhatsApp —
+// Regra: só descreve o que o produto entrega hoje (fases 0-6 e 8, esta
+// última o dashboard/relatórios/CSV). Nada de e-mail nem alerta de SLA
+// (fase 7, adiada), nem IA, chatbot ou WhatsApp, que não existem —
 // ver specs/landing-publica/spec.md, requirement "Copy restrita a
 // funcionalidades entregues".
 
@@ -161,7 +162,8 @@ export const FAQ = [
   },
   {
     pergunta: "Tem dashboard, relatório ou exportação?",
-    resposta: "Ainda não — essa etapa está planejada, mas ainda não foi entregue.",
+    resposta:
+      "Tem. Dashboard com métricas por analista e por empresa — total, abertos, finalizados, tempo médio de resposta e de solução, e % de cumprimento de SLA — e exportação em CSV, na área da equipe.",
   },
   {
     pergunta: "Atende WhatsApp, telefone ou tem base de conhecimento?",

@@ -1,27 +1,36 @@
 ## Purpose
 
 Define quem entra no help desk, com qual papel, e o que cada papel consegue ler e escrever — incluindo o isolamento entre empresas-clientes, que é aplicado no próprio banco de dados e não apenas na interface.
-
 ## Requirements
-
 ### Requirement: Login com identificação de papel
-O sistema SHALL exigir autenticação por e-mail e senha para acessar qualquer rota que não seja a de login ou a de avaliação por token. Toda pessoa autenticada SHALL ter exatamente um papel entre `admin`, `analista` e `solicitante`, e todo `solicitante` SHALL estar vinculado a uma empresa.
+O sistema SHALL exigir autenticação por e-mail e senha para acessar qualquer rota que não
+seja a de login, a de avaliação por token, ou a landing pública (`/` e `/landing`). Toda
+pessoa autenticada SHALL ter exatamente um papel entre `admin`, `analista` e
+`solicitante`, e todo `solicitante` SHALL estar vinculado a uma empresa.
 
 #### Scenario: Acesso sem sessão
 - **WHEN** uma requisição sem sessão válida atinge qualquer rota protegida
-- **THEN** o sistema SHALL redirecionar para a tela de login, preservando o destino original para retomar após a autenticação
+- **THEN** o sistema SHALL redirecionar para a tela de login, preservando o destino
+  original para retomar após a autenticação
+
+#### Scenario: Acesso à landing pública sem sessão
+- **WHEN** uma requisição sem sessão válida atinge `/` ou `/landing`
+- **THEN** o sistema SHALL responder com a landing page, sem redirecionar para o login
 
 #### Scenario: Credenciais inválidas
 - **WHEN** a pessoa envia e-mail ou senha incorretos
-- **THEN** o sistema SHALL exibir mensagem de erro sem revelar se o e-mail existe, e não SHALL criar sessão
+- **THEN** o sistema SHALL exibir mensagem de erro sem revelar se o e-mail existe, e não
+  SHALL criar sessão
 
 #### Scenario: Sessão expirada durante o uso
 - **WHEN** a sessão expira e a pessoa dispara uma ação de escrita
-- **THEN** a ação SHALL ser recusada e a pessoa SHALL ser levada ao login, sem gravação parcial
+- **THEN** a ação SHALL ser recusada e a pessoa SHALL ser levada ao login, sem gravação
+  parcial
 
 #### Scenario: Solicitante sem empresa vinculada
 - **WHEN** um usuário com papel `solicitante` não possui empresa vinculada
-- **THEN** o sistema SHALL negar o acesso às telas de chamado em vez de exibir dados de todas as empresas
+- **THEN** o sistema SHALL negar o acesso às telas de chamado em vez de exibir dados de
+  todas as empresas
 
 ### Requirement: Redirecionamento por papel após autenticação
 Após o login, o sistema SHALL levar `admin` e `analista` para a área interna de chamados e `solicitante` para o portal do cliente. Um `solicitante` autenticado não SHALL conseguir abrir nenhuma rota da área interna, e a tentativa SHALL resultar em redirecionamento para o portal.
@@ -70,3 +79,4 @@ Empresas, usuários, categorias, política de SLA e status por empresa SHALL ser
 #### Scenario: Analista carrega o formulário de triage
 - **WHEN** um analista abre um chamado para triagem
 - **THEN** as categorias e os status ativos da empresa do chamado SHALL estar disponíveis para leitura
+

@@ -1,11 +1,10 @@
-## Purpose
+# landing-publica Specification
 
+## Purpose
 Define o comportamento observável da landing page pública do Aegis em `/` — o que ela
 mostra, para quem, e os limites de honestidade da copy frente ao que o produto realmente
 entrega hoje.
-
-## ADDED Requirements
-
+## Requirements
 ### Requirement: Landing pública em `/` para visitante anônimo
 Um visitante sem sessão que acessa `/` SHALL ver a landing page do Aegis, não um
 redirecionamento para `/login`. A landing SHALL ser navegável e legível sem qualquer
@@ -21,20 +20,45 @@ chamada autenticada.
   `admin`/`analista`, portal para `solicitante`), preservando o comportamento de
   redirecionamento por papel já definido em `autenticacao-acesso`
 
+### Requirement: Rota `/landing` acessível em qualquer papel
+O sistema SHALL servir a mesma landing page também em `/landing`, sem guarda de papel, para
+que uma pessoa autenticada consiga alcançar a página — em `/` ela é redirecionada para o
+shell do seu papel. `/landing` SHALL ficar fora do índice dos buscadores, para não competir
+com `/` como conteúdo duplicado.
+
+#### Scenario: Usuário autenticado abre `/landing`
+- **WHEN** uma requisição com sessão válida de qualquer papel atinge `/landing`
+- **THEN** o sistema SHALL responder com a landing page, com status 200, sem redirecionar
+  para o shell do papel
+
+#### Scenario: Indexação de `/landing`
+- **WHEN** um robô de busca consulta as regras de indexação do site
+- **THEN** `/landing` SHALL constar como não indexável, enquanto `/` permanece a rota
+  canônica da landing
+
 ### Requirement: Copy restrita a funcionalidades entregues
 A landing SHALL descrever apenas capacidades que o produto entrega nas fases já concluídas
 do roadmap (motor de SLA com pausa que congela o prazo, priorização com recálculo, Kanban
 em tempo real, timeline, apontamento de horas, anexos, avaliação por link, portal do
-solicitante, isolamento de dados por empresa, papéis e status configuráveis). A landing NÃO
-SHALL apresentar como disponíveis capacidades ainda não entregues (e-mail transacional,
-alerta automático de SLA, dashboard/relatórios/exportação) nem capacidades inexistentes no
-produto (IA, chatbot, WhatsApp, telefone, base de conhecimento, omnichannel).
+solicitante, isolamento de dados por empresa, papéis e status configuráveis, dashboard de
+métricas com exportação em CSV). A landing NÃO SHALL apresentar como disponíveis
+capacidades ainda não entregues (e-mail transacional, alerta automático de SLA) nem
+capacidades inexistentes no produto (IA, chatbot, WhatsApp, telefone, base de conhecimento,
+omnichannel).
+
+A regra vale nas duas direções: a landing também NÃO SHALL declarar como indisponível uma
+capacidade que o produto já entrega.
 
 #### Scenario: FAQ é consultado sobre uma capacidade não entregue
-- **WHEN** a seção de perguntas frequentes aborda e-mail transacional, alertas de SLA ou
-  relatórios
+- **WHEN** a seção de perguntas frequentes aborda e-mail transacional ou alertas
+  automáticos de SLA
 - **THEN** a resposta SHALL declarar explicitamente que a capacidade ainda não está
   disponível, em vez de omitir a pergunta ou insinuar disponibilidade
+
+#### Scenario: FAQ é consultado sobre uma capacidade já entregue
+- **WHEN** a seção de perguntas frequentes aborda dashboard, relatórios ou exportação
+- **THEN** a resposta SHALL declarar que a capacidade está disponível, e NÃO SHALL
+  descrevê-la como planejada ou não entregue
 
 #### Scenario: FAQ é consultado sobre uma capacidade inexistente
 - **WHEN** a seção de perguntas frequentes aborda IA, chatbot, WhatsApp ou telefone
@@ -72,3 +96,4 @@ preferência `prefers-reduced-motion` do visitante.
 - **WHEN** um visitante navega a página inteira usando apenas o teclado
 - **THEN** todo controle interativo, incluindo os itens do acordeão de perguntas
   frequentes, SHALL ser alcançável e operável, com foco sempre visível
+
