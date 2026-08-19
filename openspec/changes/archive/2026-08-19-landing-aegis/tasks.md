@@ -140,4 +140,16 @@
        toque de 44px) — corrigido para `size-11`
 - [x] 11.6 Grep `text-(base|lg|xl|2xl)`: achou 1 resultado (`aegis-logo.tsx` — wordmark em
        `text-lg`) e corrigiu para `text-lead`. Zero resultados após a correção
-- [ ] 11.7 Revisão final da copy contra a lista de features não entregues — pendente
+- [x] 11.7 Revisão final da copy contra a lista de features entregues e não entregues.
+       **Achado real**: o FAQ respondia "Ainda não" para "Tem dashboard, relatório ou
+       exportação?", mas a fase 8 já estava entregue (`lib/relatorios/`, rota `/dashboard`,
+       botão "Exportar CSV") — a landing negava uma capacidade existente. Corrigido em
+       `lib/site/conteudo.ts`, junto do comentário do topo do arquivo, que repetia o erro.
+       O requirement "Copy restrita a funcionalidades entregues" foi corrigido no delta
+       spec pelo mesmo motivo e ganhou a regra explícita de valer nas duas direções.
+       Resto da copy conferido item a item: e-mail transacional e alerta de SLA (fase 7,
+       adiada) seguem declarados como não entregues, IA/chatbot/WhatsApp/telefone como
+       inexistentes, e nenhuma outra seção promete o que o produto não faz.
+       **Não verificado**: larguras 768 e 1024 (a lacuna que a 11.3 registra) — a sessão
+       de navegador estava compartilhada com outro agente trabalhando no repositório e
+       não valia o risco de atrapalhar; segue como pendência conhecida
