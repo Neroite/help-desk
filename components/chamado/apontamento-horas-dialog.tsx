@@ -24,7 +24,7 @@ export function ApontamentoHorasDialog({
 }: ApontamentoHorasDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Apontamento de horas · #{ticketNumero}</DialogTitle>
         </DialogHeader>

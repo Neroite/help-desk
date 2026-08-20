@@ -41,6 +41,9 @@ export default async function PortalLayout({ children }: { children: ReactNode }
         categoriasProblema,
         slaPolicies,
         mesasTrabalho,
+        // Setor do solicitante é edição exclusiva do painel do staff -- o
+        // portal não usa, então não vale gastar a query aqui.
+        setores: [],
         usuarioAtual,
       }}
     >

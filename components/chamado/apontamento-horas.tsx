@@ -4,8 +4,8 @@ import { useState } from "react"
 import { Play, Plus, Square, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,8 @@ import {
   pararTimer,
   registrarManual,
 } from "@/lib/tickets/apontamentos"
-import type { ApontamentoHoras as ApontamentoHorasItem } from "@/lib/types"
+import type { ApontamentoHoras as ApontamentoHorasItem, Usuario } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 interface ApontamentoHorasProps {
   ticketNumero: number
@@ -37,6 +38,37 @@ function formatarMinutos(min: number): string {
   return h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${m}min`
 }
 
+// timeZone fixo — mesmo cuidado de ticket-timeline.tsx e chamado-detalhe-client.tsx:
+// servidor e cliente em fusos diferentes quebrariam a hidratação.
+function formatarQuando(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  })
+}
+
+function StatTile({ rotulo, valor, destaque }: { rotulo: string; valor: string; destaque?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center gap-0.5 rounded-md border border-border px-3 py-2.5 text-center",
+        destaque ? "bg-secondary/10" : "bg-surface"
+      )}
+    >
+      <span className="font-tabular text-lg font-semibold text-foreground">{valor}</span>
+      <span className="text-[11px] text-muted-foreground">{rotulo}</span>
+    </div>
+  )
+}
+
+// Totalizador + tabela "Horas apontadas" (referência Milvus, decisão 6: só o
+// visual, sem coluna nova). A distinção faturável/não faturável foi removida
+// do totalizador e da tabela por pedido do usuário ("não faz diferença") —
+// o campo `faturavel` continua existindo no schema (registrarManual ainda
+// grava `true` por padrão), só não aparece mais na UI.
 export function ApontamentoHoras({
   ticketNumero,
   apontamentos,
@@ -47,15 +79,11 @@ export function ApontamentoHoras({
   const [dialogAberto, setDialogAberto] = useState(false)
   const [minutosManual, setMinutosManual] = useState("")
   const [descricaoManual, setDescricaoManual] = useState("")
-  const [faturavelManual, setFaturavelManual] = useState(true)
 
   // Apontamento em aberto não tem `minutos` ainda — só entra no total quando
   // o timer para. Por isso o `?? 0` em vez de confiar no campo.
   const encerrados = apontamentos.filter((a) => a.fim !== null)
   const totalMinutos = encerrados.reduce((soma, a) => soma + (a.minutos ?? 0), 0)
-  const faturavelMinutos = encerrados
-    .filter((a) => a.faturavel)
-    .reduce((soma, a) => soma + (a.minutos ?? 0), 0)
 
   const timerDesteChamado = timerAberto?.ticketId === ticketNumero ? timerAberto : null
   const timerDeOutroChamado = timerAberto && timerAberto.ticketId !== ticketNumero
@@ -86,42 +114,40 @@ export function ApontamentoHoras({
           ticketNumero,
           minutos,
           descricao: descricaoManual,
-          faturavel: faturavelManual,
+          faturavel: true,
         }),
       "Horas registradas."
     )
     setDialogAberto(false)
     setMinutosManual("")
     setDescricaoManual("")
-    setFaturavelManual(true)
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="font-tabular text-sm font-medium text-foreground">
-          {formatarMinutos(totalMinutos)}{" "}
-          <span className="font-sans text-xs font-normal text-muted-foreground">
-            ({formatarMinutos(faturavelMinutos)} faturável)
-          </span>
-        </span>
+    <div className="flex flex-col gap-4">
+      <StatTile rotulo="Total de horas" valor={formatarMinutos(totalMinutos)} destaque />
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-medium text-foreground">Horas apontadas</h3>
         <div className="flex items-center gap-1">
           <Button
             type="button"
             size="sm"
-            variant="ghost"
-            className="h-7 text-xs"
+            className="h-7 cursor-pointer text-xs"
             disabled={processando}
             onClick={() => setDialogAberto(true)}
           >
             <Plus className="size-3.5" data-icon="inline-start" />
-            Lançar
+            Novo apontamento de hora
           </Button>
           <Button
             type="button"
             size="sm"
-            variant={timerDesteChamado ? "destructive" : "outline"}
-            className="h-7 text-xs"
+            variant={timerDesteChamado ? "destructive" : undefined}
+            className={cn(
+              "h-7 cursor-pointer text-xs",
+              !timerDesteChamado && "border-transparent bg-green-600 text-white hover:bg-green-700 hover:text-white"
+            )}
             disabled={processando || Boolean(timerDeOutroChamado)}
             onClick={() =>
               timerDesteChamado
@@ -145,61 +171,74 @@ export function ApontamentoHoras({
         </p>
       )}
 
-      <ul className="flex flex-col gap-2">
-        {timerDesteChamado && (
-          <li className="flex flex-col gap-0.5 border-t border-border pt-2 text-xs first:border-0 first:pt-0">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-foreground">
-                {usuarioPorId(timerDesteChamado.analistaId)?.nome}
-              </span>
-              <span className="font-tabular text-sla-atencao">em andamento</span>
-            </div>
-            <p className="text-muted-foreground">Timer iniciado, ainda sem duração fechada.</p>
-          </li>
-        )}
-
-        {encerrados.map((a) => {
-          const podeExcluir = usuarioAtual?.id === a.analistaId || usuarioAtual?.papel === "admin"
-          return (
-            <li
-              key={a.id}
-              className="flex flex-col gap-0.5 border-t border-border pt-2 text-xs first:border-0 first:pt-0"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground">
-                  {usuarioPorId(a.analistaId)?.nome}
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="font-tabular text-muted-foreground">
-                    {formatarMinutos(a.minutos ?? 0)}
-                  </span>
-                  {podeExcluir && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="size-6 p-0"
-                      aria-label="Excluir apontamento"
-                      disabled={processando}
-                      onClick={() =>
-                        executar(() => excluirApontamento(a.id), "Apontamento excluído.")
-                      }
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  )}
-                </span>
-              </div>
-              {a.descricao && <p className="text-muted-foreground">{a.descricao}</p>}
-              {a.faturavel && (
-                <span className="w-fit rounded-sm bg-sla-ok/10 px-1.5 py-0.5 text-[10px] font-medium text-sla-ok">
-                  Faturável
-                </span>
+      {!timerDesteChamado && encerrados.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border p-(--space-4) text-center text-sm text-muted-foreground">
+          Nenhum apontamento ainda.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full min-w-[560px] text-left text-xs">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                <th className="px-3 py-2 font-medium">Quando</th>
+                <th className="px-3 py-2 font-medium">Operador</th>
+                <th className="px-3 py-2 font-medium">Descrição</th>
+                <th className="px-3 py-2 text-right font-medium">Horas trabalhadas</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {timerDesteChamado && (
+                <tr className="border-b border-border last:border-0">
+                  <td className="px-3 py-2 text-muted-foreground">{formatarQuando(timerDesteChamado.inicio)}</td>
+                  <td className="px-3 py-2">
+                    <OperadorCelula usuario={usuarioPorId(timerDesteChamado.analistaId)} />
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">—</td>
+                  <td className="px-3 py-2 text-right font-tabular text-sla-atencao">
+                    em andamento
+                  </td>
+                  <td className="px-3 py-2" />
+                </tr>
               )}
-            </li>
-          )
-        })}
-      </ul>
+              {encerrados.map((a) => {
+                const podeExcluir = usuarioAtual?.id === a.analistaId || usuarioAtual?.papel === "admin"
+                return (
+                  <tr key={a.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 text-muted-foreground">{formatarQuando(a.inicio)}</td>
+                    <td className="px-3 py-2">
+                      <OperadorCelula usuario={usuarioPorId(a.analistaId)} />
+                    </td>
+                    <td className="max-w-48 truncate px-3 py-2 text-muted-foreground" title={a.descricao ?? undefined}>
+                      {a.descricao || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right font-tabular text-foreground">
+                      {formatarMinutos(a.minutos ?? 0)}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {podeExcluir && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="size-6 cursor-pointer p-0"
+                          aria-label="Excluir apontamento"
+                          disabled={processando}
+                          onClick={() =>
+                            executar(() => excluirApontamento(a.id), "Apontamento excluído.")
+                          }
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
         <DialogContent className="sm:max-w-sm">
@@ -229,14 +268,6 @@ export function ApontamentoHoras({
                 onChange={(event) => setDescricaoManual(event.target.value)}
               />
             </Field>
-            <Field orientation="horizontal">
-              <Checkbox
-                id="apontamento-faturavel"
-                checked={faturavelManual}
-                onCheckedChange={(marcado) => setFaturavelManual(marcado === true)}
-              />
-              <FieldLabel htmlFor="apontamento-faturavel">Faturável</FieldLabel>
-            </Field>
           </FieldGroup>
 
           <DialogFooter>
@@ -253,6 +284,17 @@ export function ApontamentoHoras({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function OperadorCelula({ usuario }: { usuario: Usuario | undefined }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Avatar size="sm">
+        <AvatarFallback>{usuario?.avatarIniciais ?? "?"}</AvatarFallback>
+      </Avatar>
+      <span className="text-foreground">{usuario?.nome ?? "—"}</span>
     </div>
   )
 }

@@ -77,6 +77,10 @@ export interface Comentario {
   ticketId: number
   autorId: string
   corpo: string
+  // 'html' só quando corpo veio do editor rich text (F5), construído no
+  // servidor a partir do JSON do editor -- nunca HTML recebido do cliente.
+  // Todo histórico anterior é 'texto' e renderiza como whitespace-pre-wrap.
+  formato: "texto" | "html"
   interno: boolean
   criadoEm: string
 }
@@ -176,6 +180,10 @@ export interface Ticket {
   paiId: number | null
   conciliadoNoId: number | null
   mesaId: string | null
+  // Setor do cliente de onde veio o chamado -- distinto de usuario.setorId
+  // (cadastro da pessoa); editar este aqui não afeta os outros chamados
+  // do mesmo solicitante.
+  setorId: string | null
   // Campos só do mock antigo (sem coluna real em helpdesk.ticket) — a UI
   // que ainda os usa trata como enriquecimento opcional, não dado real.
   assunto?: string

@@ -7,6 +7,7 @@ import {
   listarCategoriasProblema,
   listarEmpresas,
   listarMesasTrabalho,
+  listarSetores,
   listarSlaPolicies,
   listarUsuarios,
 } from "@/lib/tickets/queries"
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     categoriasProblema,
     slaPolicies,
     mesasTrabalho,
+    setores,
     usuarioAtual,
   ] = await Promise.all([
     listarEmpresas(),
@@ -29,6 +31,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     listarCategoriasProblema(),
     listarSlaPolicies(),
     listarMesasTrabalho(),
+    listarSetores(),
     buscarUsuarioAtual(),
   ])
 
@@ -41,6 +44,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         categoriasProblema,
         slaPolicies,
         mesasTrabalho,
+        setores,
         usuarioAtual,
       }}
     >

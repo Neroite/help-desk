@@ -1,6 +1,6 @@
 import { minutosUteisEntre } from "@/lib/sla/calendario"
 import type { SlaSeveridade, StatusKey } from "@/lib/types"
-import { STATUS_FINAIS, STATUS_PAUSA_SLA } from "@/lib/types"
+import { STATUS_FINAIS } from "@/lib/types"
 
 // Campos do ticket usados pra exibição de SLA — subconjunto de Ticket,
 // aceito estruturalmente por qualquer chamador que já tenha o ticket
@@ -58,7 +58,10 @@ export function calcularProgressoSla(ticket: TicketSlaInfo, tipo: SlaTipo, agora
   if (!venceEm) return { percentual: 0, severidade: "ok", agoraEfetivo: agora }
 
   const encerradoEm = encerradoEmDoTipo(ticket, tipo)
-  const pausado = !encerradoEm && STATUS_PAUSA_SLA.includes(ticket.statusKey)
+  // slaPausadoEm, não status_key: a pausa pode ser manual (independente do
+  // status geral do chamado) -- derivar do status faria a barra continuar
+  // "correndo" visualmente enquanto o banco já registra o SLA pausado.
+  const pausado = !encerradoEm && ticket.slaPausadoEm !== null
 
   // Congela no instante do encerramento; senão no instante da pausa; senão
   // segue o relógio.

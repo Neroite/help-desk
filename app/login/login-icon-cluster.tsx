@@ -1,7 +1,9 @@
 "use client"
 
-import { BarChart3, Bell, Kanban, Ticket, TimerReset } from "lucide-react"
+import { BarChart3, Bell, Kanban, TimerReset } from "lucide-react"
 import { motion, useReducedMotion, type Variants } from "motion/react"
+
+import { AegisLogo } from "@/components/brand/aegis-logo"
 
 const ICONES = [
   { Icon: Bell, className: "top-2 left-0 size-14", iconClassName: "size-6" },
@@ -48,7 +50,7 @@ export function LoginIconCluster() {
         }
         className="flex size-44 items-center justify-center rounded-[2.5rem] border border-primary/20 bg-surface/80 shadow-lg backdrop-blur-sm"
       >
-        <Ticket className="size-16 text-primary" aria-hidden="true" />
+        <AegisLogo className="size-16 text-primary" />
       </motion.div>
 
       {ICONES.map(({ Icon, className, iconClassName }, i) => (

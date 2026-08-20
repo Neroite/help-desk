@@ -20,6 +20,7 @@ import { AnexoList } from "@/components/chamado/anexo-list"
 import { CategoriaProblemaSelect } from "@/components/chamado/categoria-problema-select"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { criarChamado } from "@/lib/tickets/actions"
+import { anexarArquivo } from "@/lib/tickets/anexos"
 
 // Formulário do solicitante — sem prioridade nem categoria de atendimento,
 // isso é decidido no triage pelo analista (outra tela).
@@ -29,6 +30,7 @@ export default function NovoChamadoPage() {
   const [titulo, setTitulo] = useState("")
   const [descricao, setDescricao] = useState("")
   const [catProblemaId, setCatProblemaId] = useState("")
+  const [pendentes, setPendentes] = useState<File[]>([])
   const [tentouEnviar, setTentouEnviar] = useState(false)
   const [enviando, setEnviando] = useState(false)
 
@@ -60,9 +62,26 @@ export default function NovoChamadoPage() {
         titulo,
         descricao,
         empresaId: usuarioAtual.empresaId!,
-        solicitanteId: usuarioAtual.id,
+        contatoIds: [usuarioAtual.id],
         catProblemaId: catProblemaId || null,
       })
+
+      if (pendentes.length > 0) {
+        const falhas: string[] = []
+        for (const arquivo of pendentes) {
+          const formData = new FormData()
+          formData.set("arquivo", arquivo)
+          try {
+            await anexarArquivo(formData, { ticketNumero: numero })
+          } catch {
+            falhas.push(arquivo.name)
+          }
+        }
+        if (falhas.length > 0) {
+          toast.error(`Chamado aberto, mas falhou o anexo: ${falhas.join(", ")}. Envie de novo pelo chamado.`)
+        }
+      }
+
       toast.success("Chamado aberto com sucesso!")
       router.push(`/portal/chamados/${numero}`)
     } catch {
@@ -131,7 +150,7 @@ export default function NovoChamadoPage() {
 
           <Field>
             <FieldLabel>Anexo</FieldLabel>
-            <AnexoList anexos={[]} />
+            <AnexoList anexos={[]} pendentes={pendentes} onPendentesChange={setPendentes} />
           </Field>
 
           <div className="flex justify-end gap-(--space-2)">

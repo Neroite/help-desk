@@ -45,23 +45,25 @@ export function TicketPreviewSheet({ ticket, open, onOpenChange }: TicketPreview
 
     supabase
       .from("comentario")
-      .select("id, ticket_id, autor_id, corpo, interno, criado_em")
+      .select("id, ticket_id, autor_id, corpo, formato, interno, criado_em")
       .eq("ticket_id", ticket.numero)
       .order("criado_em", { ascending: false })
       .limit(3)
       .then(({ data }) => {
         if (cancelado || !data) return
+        // Mais recente primeiro -- mesma ordem da timeline do detalhe
+        // (ver ticket-timeline.tsx). A query já vem `ascending: false`,
+        // então não precisa reverter.
         setUltimosComentarios(
-          data
-            .map((r) => ({
-              id: r.id,
-              ticketId: r.ticket_id,
-              autorId: r.autor_id,
-              corpo: r.corpo,
-              interno: r.interno,
-              criadoEm: r.criado_em,
-            }))
-            .reverse()
+          data.map((r) => ({
+            id: r.id,
+            ticketId: r.ticket_id,
+            autorId: r.autor_id,
+            corpo: r.corpo,
+            formato: r.formato,
+            interno: r.interno,
+            criadoEm: r.criado_em,
+          }))
         )
       })
 
@@ -119,7 +121,18 @@ export function TicketPreviewSheet({ ticket, open, onOpenChange }: TicketPreview
                               <span className="text-xs text-muted-foreground">Nota interna</span>
                             )}
                           </div>
-                          <p className="text-muted-foreground">{comentario.corpo}</p>
+                          {comentario.formato === "html" ? (
+                            // Prévia curta: seguro porque corpo html só existe quando
+                            // construído no servidor (ver ticket-timeline.tsx).
+                            <div
+                              className="line-clamp-3 text-muted-foreground [&_*]:inline"
+                              dangerouslySetInnerHTML={{ __html: comentario.corpo }}
+                            />
+                          ) : (
+                            <p className="line-clamp-3 whitespace-pre-wrap text-muted-foreground">
+                              {comentario.corpo}
+                            </p>
+                          )}
                         </li>
                       )
                     })}
