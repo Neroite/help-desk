@@ -16,6 +16,16 @@ interface AnexoListProps {
    * chamado ainda não existe e portanto não há onde pendurar o arquivo.
    */
   ticketNumero?: number | null
+  /**
+   * Modo pendente (F10): sem `ticketNumero`, o formulário de abertura ainda
+   * assim deixa escolher arquivo -- fica em memória como `File[]` (chips
+   * removíveis) e quem preenche o form sobe via `anexarArquivo` depois que
+   * `criarChamado` devolver o número. O path do storage é contratual (a
+   * policy extrai o número do 2º segmento), então não dá pra subir antes de
+   * o chamado existir -- só segurar o arquivo no cliente.
+   */
+  pendentes?: File[]
+  onPendentesChange?: (arquivos: File[]) => void
 }
 
 const formatadorTamanho = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
@@ -26,17 +36,27 @@ function formatarTamanho(kb: number): string {
     : `${formatadorTamanho.format(kb)} KB`
 }
 
-export function AnexoList({ anexos, ticketNumero }: AnexoListProps) {
+function formatarTamanhoBytes(bytes: number): string {
+  return formatarTamanho(bytes / 1024)
+}
+
+export function AnexoList({ anexos, ticketNumero, pendentes, onPendentesChange }: AnexoListProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [processando, setProcessando] = useState(false)
   const { usuarioAtual } = useReferenceData()
 
   const podeAnexar = typeof ticketNumero === "number"
+  const modoPendente = !podeAnexar && Boolean(onPendentesChange)
   // Remoção é do staff (mesma regra da policy `anexo_staff_delete`).
   const podeRemover =
     usuarioAtual?.papel === "admin" || usuarioAtual?.papel === "analista"
 
   async function enviar(arquivo: File) {
+    if (modoPendente) {
+      onPendentesChange?.([...(pendentes ?? []), arquivo])
+      if (inputRef.current) inputRef.current.value = ""
+      return
+    }
     if (!podeAnexar) return
     const formData = new FormData()
     formData.set("arquivo", arquivo)
@@ -51,6 +71,10 @@ export function AnexoList({ anexos, ticketNumero }: AnexoListProps) {
       setProcessando(false)
       if (inputRef.current) inputRef.current.value = ""
     }
+  }
+
+  function removerPendente(index: number) {
+    onPendentesChange?.((pendentes ?? []).filter((_, i) => i !== index))
   }
 
   async function abrir(anexoId: string) {
@@ -115,9 +139,37 @@ export function AnexoList({ anexos, ticketNumero }: AnexoListProps) {
             </li>
           )
         })}
+
+        {modoPendente &&
+          (pendentes ?? []).map((arquivo, index) => (
+            <li
+              key={`${arquivo.name}-${arquivo.size}-${index}`}
+              className="flex items-center gap-2 rounded-md border border-dashed border-border px-2 py-1.5 text-xs"
+            >
+              {arquivo.type.startsWith("image/") ? (
+                <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              ) : (
+                <FileText className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
+              <span className="truncate text-foreground">{arquivo.name}</span>
+              <span className="ml-auto shrink-0 font-tabular text-muted-foreground">
+                {formatarTamanhoBytes(arquivo.size)}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="size-6 shrink-0 p-0"
+                aria-label={`Remover ${arquivo.name}`}
+                onClick={() => removerPendente(index)}
+              >
+                <Trash2 className="size-3" />
+              </Button>
+            </li>
+          ))}
       </ul>
 
-      {podeAnexar && (
+      {(podeAnexar || modoPendente) && (
         <>
           <input
             ref={inputRef}
@@ -140,7 +192,7 @@ export function AnexoList({ anexos, ticketNumero }: AnexoListProps) {
         </>
       )}
 
-      {!podeAnexar && (
+      {!podeAnexar && !modoPendente && (
         <p className="text-xs text-muted-foreground">
           Anexos podem ser enviados depois que o chamado for aberto.
         </p>

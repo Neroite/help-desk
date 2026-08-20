@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache"
 
-import { aplicarPausa, aplicarRetomada, calcularPrazos, recalcularPorPrioridade } from "@/lib/sla/prazos"
+import { construirHtmlComentario, documentoTemConteudo } from "@/lib/comentario/render-html"
+import {
+  aplicarPausa,
+  aplicarRetomada,
+  calcularPrazos,
+  pausarSeNecessario,
+  recalcularPorPrioridade,
+} from "@/lib/sla/prazos"
 import { createClient } from "@/lib/supabase/server"
 import { STATUS_PAUSA_SLA, type Papel, type Prioridade, type StatusKey } from "@/lib/types"
 
@@ -20,12 +27,22 @@ export interface CriarChamadoInput {
   titulo: string
   descricao: string
   empresaId: string
-  solicitanteId: string
+  // Primeiro id vira ticket.solicitante_id (mesma pessoa "dona" do chamado);
+  // os demais viram linhas de ticket_contato. Substitui o antigo campo único
+  // `solicitanteId` -- referência Milvus pede multi-contato na abertura (F10).
+  // Só o form do staff usa mais de um: ticket_contato é staff-only por RLS
+  // (correção C6), o portal sempre manda um array de 1 (o próprio usuário).
+  contatoIds: string[]
   catProblemaId?: string | null
   mesaId?: string | null
 }
 
 export async function criarChamado(input: CriarChamadoInput): Promise<{ numero: number }> {
+  if (input.contatoIds.length === 0) {
+    throw new Error("Informe ao menos um contato.")
+  }
+  const [solicitanteId, ...contatosExtras] = input.contatoIds
+
   const supabase = await createClient()
 
   const { data: politicaPadrao, error: erroPolitica } = await supabase
@@ -47,7 +64,7 @@ export async function criarChamado(input: CriarChamadoInput): Promise<{ numero: 
       titulo: input.titulo,
       descricao: input.descricao,
       empresa_id: input.empresaId,
-      solicitante_id: input.solicitanteId,
+      solicitante_id: solicitanteId,
       cat_problema_id: input.catProblemaId ?? null,
       mesa_id: input.mesaId ?? null,
       sla_resposta_vence_em: prazos.respostaVenceEm.toISOString(),
@@ -69,6 +86,37 @@ export async function criarChamado(input: CriarChamadoInput): Promise<{ numero: 
     autor_id: user?.id,
   })
 
+  // Um único insert em lote, não N chamadas a adicionarContato (C6) -- isso
+  // seriam 4N round-trips e N revalidações pra uma ação que já é uma única
+  // submissão de formulário.
+  if (contatosExtras.length > 0) {
+    await supabase.from("ticket_contato").insert(
+      contatosExtras.map((usuarioId) => ({
+        ticket_id: ticket.numero,
+        usuario_id: usuarioId,
+        adicionado_por: user?.id,
+      }))
+    )
+  }
+
+  // Descrição vira o primeiro comentário público do chamado, autorado pelo
+  // solicitante -- senão o texto que ele escreveu ao abrir some para quem vai
+  // atender (só aparecia no portal). Insert direto, NÃO via adicionarComentario:
+  // aquela função grava primeira_resposta_em quando o autor é staff, e quem abre
+  // em nome do cliente aqui é o staff -- chamá-la zeraria o SLA de resposta no
+  // instante da criação. origem = 'descricao' (mesmo marcador da migration
+  // retroativa) distingue este comentário de um digitado depois na timeline.
+  if (input.descricao.trim() !== "") {
+    await supabase.from("comentario").insert({
+      ticket_id: ticket.numero,
+      autor_id: solicitanteId,
+      corpo: input.descricao,
+      interno: false,
+      criado_em: agora.toISOString(),
+      origem: "descricao",
+    })
+  }
+
   revalidatePath("/chamados")
   revalidatePath("/portal")
   return { numero: ticket.numero }
@@ -78,22 +126,49 @@ export interface AdicionarComentarioInput {
   ticketNumero: number
   corpo: string
   interno: boolean
+  // JSON do editor rich text (`editor.getJSON()`), quando o comentário veio
+  // do modal com Tiptap (F5). O servidor constrói o HTML aqui -- nunca
+  // aceita HTML pronto do cliente (correção C2). Ausente = comentário de
+  // texto puro (composer do portal, ou fallback), grava `corpo` como veio.
+  documentoRico?: unknown
+  // Anexos "de verdade" (não imagem colada inline no corpo) subidos antes
+  // do comentário existir -- o upload já aconteceu (o ticket já existe,
+  // diferente da abertura de chamado), só falta ligar comentario_id depois
+  // que o insert abaixo devolve o id novo.
+  anexoIds?: string[]
 }
 
-export async function adicionarComentario(input: AdicionarComentarioInput): Promise<void> {
+export async function adicionarComentario(input: AdicionarComentarioInput): Promise<{ id: string }> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) throw new Error("Não autenticado")
 
-  const { error } = await supabase.from("comentario").insert({
-    ticket_id: input.ticketNumero,
-    autor_id: user.id,
-    corpo: input.corpo,
-    interno: input.interno,
-  })
+  const corpo = input.documentoRico ? construirHtmlComentario(input.documentoRico) : input.corpo
+  const formato = input.documentoRico ? "html" : "texto"
+  // documentoTemConteudo, não corpoTextoPlano === "" -- um comentário só
+  // com imagem (sem nenhuma palavra) é válido e não pode ser barrado aqui.
+  if (input.documentoRico && !documentoTemConteudo(input.documentoRico)) {
+    throw new Error("Comentário vazio.")
+  }
+
+  const { data: comentario, error } = await supabase
+    .from("comentario")
+    .insert({
+      ticket_id: input.ticketNumero,
+      autor_id: user.id,
+      corpo,
+      formato,
+      interno: input.interno,
+    })
+    .select("id")
+    .single()
   if (error) throw error
+
+  if (input.anexoIds && input.anexoIds.length > 0) {
+    await supabase.from("anexo").update({ comentario_id: comentario.id }).in("id", input.anexoIds)
+  }
 
   // Comentário público muda quem "está com a bola" — usado pela coluna
   // derivada "Última interação do cliente" (lib/kanban/colunas.ts) e pelo
@@ -135,6 +210,7 @@ export async function adicionarComentario(input: AdicionarComentarioInput): Prom
 
   revalidatePath(`/chamados/${input.ticketNumero}`)
   revalidatePath(`/portal/chamados/${input.ticketNumero}`)
+  return { id: comentario.id }
 }
 
 export interface FazerTriageInput {
@@ -314,7 +390,11 @@ export async function mudarStatus(ticketNumero: number, novoStatus: StatusKey): 
     throw new Error("Chamado sem técnico atribuído — atribua um técnico antes de mudar o status.")
   }
 
-  const estavaPausado = STATUS_PAUSA_SLA.includes(estadoAtual.status_key)
+  // sla_pausado_em, não status_key: o SLA pode já estar pausado manualmente
+  // (pausarSlaManualmente) mesmo com o chamado num status "ativo" -- derivar
+  // do status faria essa mudança sobrescrever slaPausadoEm e roubar minutos
+  // do cálculo de pausa (aplicarPausa não é idempotente).
+  const estavaPausado = estadoAtual.sla_pausado_em !== null
   const vaiPausar = STATUS_PAUSA_SLA.includes(novoStatus)
 
   const slaState = {
@@ -386,7 +466,10 @@ export async function iniciarAtendimento(ticketNumero: number, analistaId?: stri
   const analistaFinal = estadoAtual.analista_id ?? analistaId ?? user?.id ?? null
   if (!analistaFinal) throw new Error("Chamado sem técnico — informe quem vai atender antes de iniciar.")
 
-  const estavaPausado = STATUS_PAUSA_SLA.includes(estadoAtual.status_key)
+  // sla_pausado_em, não status_key -- mesmo motivo de mudarStatus: iniciar
+  // atendimento também destrava uma pausa manual de SLA ativa, mesmo que o
+  // status já não estivesse em STATUS_PAUSA_SLA.
+  const estavaPausado = estadoAtual.sla_pausado_em !== null
   const agora = new Date()
   const slaState = {
     criadoEm: new Date(estadoAtual.criado_em),
@@ -458,7 +541,11 @@ export async function pausarChamado(ticketNumero: number, motivo: string): Promi
     slaPausadoEm: estadoAtual.sla_pausado_em ? new Date(estadoAtual.sla_pausado_em) : null,
     slaMinutosPausados: estadoAtual.sla_minutos_pausados,
   }
-  const proximoSla = aplicarPausa(slaState, agora)
+  // pausarSeNecessario, não aplicarPausa direto: se o SLA já estava
+  // pausado (manualmente, via pausarSlaManualmente), não sobrescreve
+  // slaPausadoEm -- aplicarPausa não é idempotente e resetaria o relógio,
+  // roubando os minutos já contabilizados da pausa em curso.
+  const proximoSla = pausarSeNecessario(slaState, agora)
 
   const { error } = await supabase
     .from("ticket")
@@ -537,6 +624,129 @@ export async function retomarChamado(ticketNumero: number): Promise<void> {
     para: "em_andamento",
     autor_id: user?.id,
     corpo: "Atendimento retomado",
+  })
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+  revalidatePath("/chamados")
+}
+
+// Pausa de SLA independente do status geral do chamado -- diferente de
+// pausarChamado, que também muda status_key pra "pausado". Escondida na UI
+// quando o status já está em STATUS_PAUSA_SLA (o SLA já está congelado por
+// ali); a guarda abaixo replica isso no servidor contra corrida entre abas.
+export async function pausarSlaManualmente(ticketNumero: number, motivo: string): Promise<void> {
+  const motivoLimpo = motivo.trim()
+  if (!motivoLimpo) throw new Error("Informe o motivo da pausa.")
+
+  const supabase = await createClient()
+
+  const { data: ticket, error: erroTicket } = await supabase
+    .from("ticket")
+    .select(
+      "criado_em, sla_resposta_vence_em, sla_solucao_vence_em, sla_pausado_em, sla_minutos_pausados, status_key"
+    )
+    .eq("numero", ticketNumero)
+    .single()
+  if (erroTicket) throw erroTicket
+
+  const estadoAtual: TicketSlaColunas = ticket
+  if (STATUS_PAUSA_SLA.includes(estadoAtual.status_key)) {
+    throw new Error('O chamado já está pausado pelo status -- use "Retomar atendimento".')
+  }
+  if (estadoAtual.sla_pausado_em) return // já pausado manualmente, no-op
+
+  const agora = new Date()
+  const slaState = {
+    criadoEm: new Date(estadoAtual.criado_em),
+    slaRespostaVenceEm: new Date(estadoAtual.sla_resposta_vence_em),
+    slaSolucaoVenceEm: new Date(estadoAtual.sla_solucao_vence_em),
+    slaPausadoEm: null,
+    slaMinutosPausados: estadoAtual.sla_minutos_pausados,
+  }
+  const proximoSla = pausarSeNecessario(slaState, agora)
+
+  const { error } = await supabase
+    .from("ticket")
+    .update({
+      sla_pausado_em: proximoSla.slaPausadoEm?.toISOString() ?? null,
+      sla_minutos_pausados: proximoSla.slaMinutosPausados,
+    })
+    .eq("numero", ticketNumero)
+  if (error) throw error
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // de: null sinaliza "sem transição de status_key" pra quem auditar a
+  // tabela de eventos -- diferente do evento "pausa" de pausarChamado, que
+  // sempre tem de/para de status_key.
+  await supabase.from("ticket_evento").insert({
+    ticket_id: ticketNumero,
+    tipo: "pausa",
+    de: null,
+    para: estadoAtual.status_key,
+    autor_id: user?.id,
+    corpo: motivoLimpo,
+  })
+
+  revalidatePath(`/chamados/${ticketNumero}`)
+  revalidatePath("/chamados")
+}
+
+export async function retomarSlaManualmente(ticketNumero: number): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: ticket, error: erroTicket } = await supabase
+    .from("ticket")
+    .select(
+      "criado_em, sla_resposta_vence_em, sla_solucao_vence_em, sla_pausado_em, sla_minutos_pausados, status_key"
+    )
+    .eq("numero", ticketNumero)
+    .single()
+  if (erroTicket) throw erroTicket
+
+  const estadoAtual: TicketSlaColunas = ticket
+  if (STATUS_PAUSA_SLA.includes(estadoAtual.status_key)) {
+    throw new Error('O chamado está pausado pelo status -- use "Retomar atendimento".')
+  }
+  if (!estadoAtual.sla_pausado_em) return // já não pausado, no-op
+
+  const agora = new Date()
+  const slaState = {
+    criadoEm: new Date(estadoAtual.criado_em),
+    slaRespostaVenceEm: new Date(estadoAtual.sla_resposta_vence_em),
+    slaSolucaoVenceEm: new Date(estadoAtual.sla_solucao_vence_em),
+    slaPausadoEm: new Date(estadoAtual.sla_pausado_em),
+    slaMinutosPausados: estadoAtual.sla_minutos_pausados,
+  }
+  const proximoSla = aplicarRetomada(slaState, agora)
+
+  const { error } = await supabase
+    .from("ticket")
+    .update({
+      sla_pausado_em: proximoSla.slaPausadoEm?.toISOString() ?? null,
+      sla_minutos_pausados: proximoSla.slaMinutosPausados,
+      sla_resposta_vence_em: proximoSla.slaRespostaVenceEm.toISOString(),
+      sla_solucao_vence_em: proximoSla.slaSolucaoVenceEm.toISOString(),
+    })
+    .eq("numero", ticketNumero)
+  if (error) throw error
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  await supabase.from("ticket_evento").insert({
+    ticket_id: ticketNumero,
+    tipo: "retomada",
+    de: null,
+    para: estadoAtual.status_key,
+    autor_id: user?.id,
+    // Texto fixo diferente de "Atendimento retomado" (retomarChamado) --
+    // não confundir na timeline: aqui só o SLA foi destravado, não o
+    // atendimento em si.
+    corpo: "SLA retomado",
   })
 
   revalidatePath(`/chamados/${ticketNumero}`)
@@ -788,6 +998,18 @@ export async function definirMesa(ticketNumero: number, mesaId: string | null): 
 
   revalidatePath(`/chamados/${ticketNumero}`)
   revalidatePath("/chamados")
+}
+
+// Sem evento de timeline (ao contrário de definirMesa): `evento_tipo` não
+// tem valor "setor" no enum, e adicionar um exigiria migration própria
+// (Postgres não permite usar valor de enum recém-criado na mesma
+// transação) -- fora do escopo pedido para este campo.
+export async function definirSetor(ticketNumero: number, setorId: string | null): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.from("ticket").update({ setor_id: setorId }).eq("numero", ticketNumero)
+  if (error) throw error
+
+  revalidatePath(`/chamados/${ticketNumero}`)
 }
 
 export interface AvaliarInput {

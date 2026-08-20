@@ -46,6 +46,7 @@ interface TicketRow {
   pai_id: number | null
   conciliado_no_id: number | null
   mesa_id: string | null
+  setor_id: string | null
 }
 
 function mapTicket(row: TicketRow): Ticket {
@@ -72,6 +73,7 @@ function mapTicket(row: TicketRow): Ticket {
     paiId: row.pai_id,
     conciliadoNoId: row.conciliado_no_id,
     mesaId: row.mesa_id,
+    setorId: row.setor_id,
   }
 }
 
@@ -132,7 +134,7 @@ export async function listarComentarios(ticketNumero: number): Promise<Comentari
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("comentario")
-    .select("id, ticket_id, autor_id, corpo, interno, criado_em")
+    .select("id, ticket_id, autor_id, corpo, formato, interno, criado_em")
     .eq("ticket_id", ticketNumero)
     .order("criado_em", { ascending: true })
   if (error) throw error
@@ -141,6 +143,7 @@ export async function listarComentarios(ticketNumero: number): Promise<Comentari
     ticketId: r.ticket_id,
     autorId: r.autor_id,
     corpo: r.corpo,
+    formato: r.formato,
     interno: r.interno,
     criadoEm: r.criado_em,
   }))
@@ -188,10 +191,14 @@ export async function listarApontamentos(ticketNumero: number): Promise<Apontame
 
 export async function listarAnexos(ticketNumero: number): Promise<Anexo[]> {
   const supabase = await createClient()
+  // inline=false exclui imagem colada/arrastada no editor de comentário
+  // (F5): ela já aparece embutida no corpo do comentário, listá-la de novo
+  // aqui seria duplicata.
   const { data, error } = await supabase
     .from("anexo")
     .select("id, ticket_id, comentario_id, nome, tamanho, storage_path")
     .eq("ticket_id", ticketNumero)
+    .eq("inline", false)
   if (error) throw error
   return (data ?? []).map((r) => ({
     id: r.id,

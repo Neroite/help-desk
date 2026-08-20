@@ -110,6 +110,11 @@
 }
 
 :root {
+  /* Marca Aegis — acento laranja do logo, fixo entre os temas de propósito
+     (assim como qualquer logo, não deve mudar de cor no dark mode). Só
+     definido em :root: sem redefinição em .dark, herda o mesmo valor sempre. */
+  --brand-accent: #f97316;
+
   /* Cor do domínio Help-Desk */
   --primary: #1e40af;
   --primary-foreground: #ffffff;
@@ -295,5 +300,45 @@
   .font-tabular {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Corpo de comentário renderizado a partir do editor rich text (F5) --
+     allowlist de tags do servidor (lib/comentario/render-html.ts) é a
+     única coisa que decide o que pode aparecer aqui; este bloco só cuida
+     de estilo. Sem plugin @tailwindcss/typography no projeto -- regras
+     mínimas, escopadas à classe. */
+  .prose-comentario {
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+  .prose-comentario p {
+    white-space: pre-wrap;
+  }
+  .prose-comentario p + p {
+    margin-top: var(--space-2);
+  }
+  .prose-comentario ul,
+  .prose-comentario ol {
+    margin-block: var(--space-2);
+    padding-inline-start: 1.25rem;
+  }
+  .prose-comentario ul {
+    list-style-type: disc;
+  }
+  .prose-comentario ol {
+    list-style-type: decimal;
+  }
+  .prose-comentario a {
+    color: var(--secondary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .prose-comentario img {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    margin-block: var(--space-2);
+  }
+  .prose-comentario strong {
+    font-weight: 600;
   }
 }

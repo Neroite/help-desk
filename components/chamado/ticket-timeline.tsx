@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  FileText,
   Flag,
   GitMerge,
   Lock,
@@ -20,16 +21,85 @@ import { buttonVariants } from "@/components/ui/button"
 import { useReferenceData } from "@/lib/reference-data/provider"
 import { useSlaClock } from "@/lib/sla-clock"
 import { STATUS_META } from "@/lib/status"
+import { gerarUrlAssinada } from "@/lib/tickets/anexos"
 import type { Anexo, Comentario, StatusKey, TicketEvento } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-export type FiltroTimeline = "todos" | "comentarios" | "anexos"
 
 interface TicketTimelineProps {
   comentarios: Comentario[]
   eventos: TicketEvento[]
-  anexos?: Anexo[]
-  filtro?: FiltroTimeline
+  anexos: Anexo[]
+}
+
+const formatadorTamanho = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
+
+function formatarTamanho(kb: number): string {
+  return kb >= 1024
+    ? `${formatadorTamanho.format(kb / 1024)} MB`
+    : `${formatadorTamanho.format(kb)} KB`
+}
+
+// Mesmo padrão de anexo-list.tsx: bucket privado, então abrir sempre passa
+// por uma signed URL nova (a anterior pode ter expirado em 60s).
+async function abrirAnexo(anexoId: string) {
+  try {
+    const url = await gerarUrlAssinada(anexoId)
+    window.open(url, "_blank", "noopener,noreferrer")
+  } catch {
+    toast.error("Não foi possível abrir o anexo.")
+  }
+}
+
+// Anexo de imagem (botão "Anexar arquivo", diferente da imagem inline do
+// editor rich text que já vai embutida no HTML do comentário) renderiza a
+// imagem de verdade, não um chip com ícone -- /api/anexos/<id> já é o mesmo
+// src estável usado pela imagem inline (RLS + cookie de sessão, sem token
+// extra). Anexo que não é imagem continua como chip.
+function AnexosDoComentario({ anexos }: { anexos: Anexo[] }) {
+  if (anexos.length === 0) return null
+  const imagens = anexos.filter((anexo) => anexo.tipo === "imagem")
+  const documentos = anexos.filter((anexo) => anexo.tipo !== "imagem")
+  return (
+    <div className="flex flex-col gap-2">
+      {imagens.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {imagens.map((anexo) => (
+            <button
+              key={anexo.id}
+              type="button"
+              className="cursor-pointer overflow-hidden rounded-md border border-border transition-opacity hover:opacity-90"
+              onClick={() => abrirAnexo(anexo.id)}
+            >
+              <img
+                src={`/api/anexos/${anexo.id}`}
+                alt={anexo.nome}
+                className="block max-h-64 max-w-[280px] object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+      {documentos.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {documentos.map((anexo) => (
+            <li key={anexo.id}>
+              <button
+                type="button"
+                className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-sm border border-border px-1.5 py-1 text-xs text-foreground hover:border-primary/40 hover:bg-muted"
+                onClick={() => abrirAnexo(anexo.id)}
+              >
+                <FileText className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="truncate">{anexo.nome}</span>
+                <span className="shrink-0 font-tabular text-muted-foreground">
+                  {formatarTamanho(anexo.tamanhoKb)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 type ItemLinha =
@@ -174,27 +244,21 @@ function corEvento(evento: TicketEvento): string {
 // Comentários e eventos de status na MESMA linha do tempo — separar em
 // abas destrói a leitura de causa ("por que ficou parado 3h" está na
 // costura entre os dois). Ver seção 2 do design.
-export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "todos" }: TicketTimelineProps) {
+export function TicketTimeline({ comentarios, eventos, anexos }: TicketTimelineProps) {
   const agora = useSlaClock()
   const { usuarioPorId, usuarioAtual } = useReferenceData()
 
-  let linhas: ItemLinha[] = [
+  // Mais recente primeiro -- ordem pedida pelo usuário depois de ver a
+  // timeline em uso (antes era crescente, mais antigo no topo).
+  const linhas: ItemLinha[] = [
     ...comentarios.map((c): ItemLinha => ({ tipo: "comentario", data: c.criadoEm, item: c })),
     ...eventos.map((e): ItemLinha => ({ tipo: "evento", data: e.criadoEm, item: e })),
-  ].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
-
-  if (filtro === "comentarios") {
-    linhas = linhas.filter((linha) => linha.tipo === "comentario")
-  } else if (filtro === "anexos") {
-    linhas = linhas.filter(
-      (linha) => linha.tipo === "comentario" && anexos.some((a) => a.comentarioId === linha.item.id)
-    )
-  }
+  ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
   if (linhas.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border p-(--space-4) text-center text-sm text-muted-foreground">
-        Nada para mostrar com este filtro.
+        Nenhuma interação ainda.
       </p>
     )
   }
@@ -227,7 +291,14 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
                   <Icon className="size-4" />
                 </span>
                 <div
-                  className="flex flex-1 flex-col gap-1.5 rounded-md border border-border bg-surface p-(--space-3) text-sm"
+                  // rounded-r-md, não rounded-md, nos 3 cards com borda esquerda
+                  // colorida desta timeline: com os 4 cantos arredondados, a curva
+                  // do canto esquerdo mistura border-left com a cor cinza padrão dos
+                  // outros lados, fazendo a faixa colorida parecer recuar do topo/
+                  // base do card -- confirmado via getComputedStyle em runtime,
+                  // border-left-width já cobria 100% da altura, só a curva do canto
+                  // "comia" a cor nos ~5px finais de cada ponta.
+                  className="flex flex-1 flex-col gap-1.5 rounded-r-md border border-border bg-surface p-(--space-3) text-sm"
                   style={{ borderLeftWidth: 4, borderLeftColor: `var(--${cor})` }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -253,7 +324,7 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
                 <Icon className="size-4" />
               </span>
               <div
-                className="flex flex-1 flex-wrap items-center gap-2 rounded-md border border-border bg-surface py-(--space-2) pr-(--space-3) pl-(--space-3) text-xs"
+                className="flex flex-1 flex-wrap items-center gap-2 rounded-r-md border border-border bg-surface py-(--space-2) pr-(--space-3) pl-(--space-3) text-xs"
                 style={{ borderLeftWidth: 4, borderLeftColor: `var(--${cor})` }}
               >
                 <span className="text-foreground">{descreverEvento(evento, usuarioPorId)}</span>
@@ -278,7 +349,7 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
 
             <div
               className={cn(
-                "flex flex-1 flex-col gap-1.5 rounded-md border border-border p-(--space-3) text-sm",
+                "flex flex-1 flex-col gap-1.5 rounded-r-md border border-border p-(--space-3) text-sm",
                 comentario.interno ? "bg-accent/10" : "bg-surface"
               )}
               style={{ borderLeftWidth: 4, borderLeftColor: corBorda }}
@@ -322,7 +393,19 @@ export function TicketTimeline({ comentarios, eventos, anexos = [], filtro = "to
                 </div>
               </div>
 
-              <p className="text-foreground">{comentario.corpo}</p>
+              {comentario.formato === "html" ? (
+                // Seguro: corpo html só existe quando construído no servidor
+                // por lib/comentario/render-html.ts a partir do JSON do
+                // editor (C2) -- nunca HTML recebido direto do cliente.
+                <div
+                  className="prose-comentario text-foreground"
+                  dangerouslySetInnerHTML={{ __html: comentario.corpo }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap text-foreground">{comentario.corpo}</p>
+              )}
+
+              <AnexosDoComentario anexos={anexos.filter((a) => a.comentarioId === comentario.id)} />
             </div>
           </li>
         )

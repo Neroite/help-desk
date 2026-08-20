@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 
-import { SlaProgress } from "@/components/chamado/sla-progress"
 import { StatusBadge } from "@/components/chamado/status-badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useReferenceData } from "@/lib/reference-data/provider"
@@ -25,10 +24,10 @@ interface TicketCardProps {
 // `href` tem default para a rota do analista; o portal do cliente passa
 // `/portal/chamados/{numero}` para não vazar o solicitante para a tela interna.
 // Campos de referência (Milvus): #numero – cliente, avatar do operador,
-// título em uma linha, duas mini-barras de SLA, data de criação. Sem
-// prioridade, sem nome por extenso do analista/solicitante — ver
-// openspec/specs/kanban-atendimento (Requirement: Card do Kanban exibe
-// apenas os campos de referência).
+// título em uma linha, data de criação. Sem SLA (fica só no detalhe e no
+// painel lateral, ver sla-e-acoes-milvus), sem prioridade, sem nome por
+// extenso do analista/solicitante — ver openspec/specs/kanban-atendimento
+// (Requirement: Card do Kanban exibe apenas os campos de referência).
 export function TicketCard({ ticket, href, className, mostrarSeloStatus }: TicketCardProps) {
   const { empresaPorId, usuarioPorId } = useReferenceData()
   const empresa = empresaPorId(ticket.empresaId)
@@ -60,10 +59,6 @@ export function TicketCard({ ticket, href, className, mostrarSeloStatus }: Ticke
         </div>
       </div>
       <p className="line-clamp-1 font-medium text-foreground">{ticket.titulo}</p>
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <SlaProgress rotulo="Resposta" ticket={ticket} tipo="resposta" />
-        <SlaProgress rotulo="Solução" ticket={ticket} tipo="solucao" />
-      </div>
       <span className="self-end font-tabular text-xs text-muted-foreground">{dataCriacao}</span>
     </Link>
   )

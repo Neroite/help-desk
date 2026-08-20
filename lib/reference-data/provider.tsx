@@ -7,6 +7,7 @@ import type {
   CategoriaProblema,
   Empresa,
   MesaTrabalho,
+  Setor,
   SlaPolicy,
   Usuario,
 } from "@/lib/types"
@@ -18,6 +19,7 @@ export interface ReferenceData {
   categoriasProblema: CategoriaProblema[]
   slaPolicies: SlaPolicy[]
   mesasTrabalho: MesaTrabalho[]
+  setores: Setor[]
   usuarioAtual: Usuario | null
 }
 
@@ -25,6 +27,7 @@ interface ReferenceDataApi extends ReferenceData {
   empresaPorId: (id: string | null | undefined) => Empresa | undefined
   usuarioPorId: (id: string | null | undefined) => Usuario | undefined
   mesaPorId: (id: string | null | undefined) => MesaTrabalho | undefined
+  setorPorId: (id: string | null | undefined) => Setor | undefined
 }
 
 const ReferenceDataContext = createContext<ReferenceDataApi | null>(null)
@@ -46,11 +49,13 @@ export function ReferenceDataProvider({
     const empresasPorId = new Map(data.empresas.map((e) => [e.id, e]))
     const usuariosPorId = new Map(data.usuarios.map((u) => [u.id, u]))
     const mesasPorId = new Map(data.mesasTrabalho.map((m) => [m.id, m]))
+    const setoresPorId = new Map(data.setores.map((s) => [s.id, s]))
     return {
       ...data,
       empresaPorId: (id) => (id ? empresasPorId.get(id) : undefined),
       usuarioPorId: (id) => (id ? usuariosPorId.get(id) : undefined),
       mesaPorId: (id) => (id ? mesasPorId.get(id) : undefined),
+      setorPorId: (id) => (id ? setoresPorId.get(id) : undefined),
     }
   }, [data])
 

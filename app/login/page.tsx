@@ -1,5 +1,6 @@
-import { BarChart3, Kanban, Lock, Mail, Ticket, TimerReset } from "lucide-react"
+import { BarChart3, Kanban, Lock, Mail, TimerReset } from "lucide-react"
 
+import { AegisLogo } from "@/components/brand/aegis-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,9 +26,9 @@ export default async function LoginPage({
       <div className="flex flex-col items-center justify-center gap-8 bg-background px-4 py-16">
         <div className="flex items-center gap-2.5 text-foreground">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Ticket className="size-5" aria-hidden="true" />
+            <AegisLogo className="size-5" />
           </div>
-          <span className="text-xl font-semibold tracking-tight">Help-Desk</span>
+          <span className="text-xl font-semibold tracking-tight">Aegis</span>
         </div>
 
         <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 shadow-sm">
@@ -35,7 +36,7 @@ export default async function LoginPage({
             <span className="rounded-md bg-primary px-1.5 py-0.5 text-primary-foreground">
               Entrar
             </span>{" "}
-            no Help-Desk
+            no Aegis
           </h1>
 
           <form action={login} className="flex flex-col gap-4">

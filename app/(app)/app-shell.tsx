@@ -27,6 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
+import { AegisLogo } from "@/components/brand/aegis-logo"
 import { NovoChamadoProvider, useNovoChamado } from "@/components/chamado/novo-chamado-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -34,9 +35,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
   Sidebar,
   SidebarContent,
@@ -201,12 +204,12 @@ function AppSidebar({ activeUrl, ehAdmin }: { activeUrl: string | null; ehAdmin:
         <Link href="/chamados?view=kanban" className="flex items-center gap-2 overflow-hidden">
           <div
             aria-hidden="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-active)] text-sm font-bold text-white"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-active)] text-white"
           >
-            HD
+            <AegisLogo className="size-5" />
           </div>
           <span className="truncate text-base font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-            Help-Desk
+            Aegis
           </span>
         </Link>
       </SidebarHeader>
@@ -271,8 +274,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { usuarioAtual } = useReferenceData()
+  const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [busca, setBusca] = useState("")
+  const [buscaSheetAberto, setBuscaSheetAberto] = useState(false)
   const activeUrl = getActiveUrl(pathname)
 
   // Qualquer termo -- número ou texto -- cai na visão Kanban de resultados,
@@ -285,6 +290,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!termo) return
     router.push(`/chamados?view=kanban&busca=${encodeURIComponent(termo)}`)
     setBusca("")
+    setBuscaSheetAberto(false)
   }
 
   return (
@@ -305,10 +311,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-(--topbar-h) shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
             <SidebarTrigger className="-ml-1 cursor-pointer" />
 
+            {/* < 640px: forma inline não cabe ao lado de +Ticket/tema/sino/avatar
+                sem espremer o campo a ponto de virar inútil -- vira um ícone
+                que abre a mesma busca num Sheet de cima. */}
             <form
               onSubmit={handleBuscaSubmit}
               role="search"
-              className="relative min-w-0 flex-1 sm:max-w-md"
+              className="relative hidden min-w-0 flex-1 sm:block sm:max-w-md"
             >
               <Search
                 aria-hidden="true"
@@ -325,22 +334,37 @@ export function AppShell({ children }: { children: ReactNode }) {
             </form>
 
             <div className="ml-auto flex items-center gap-2">
-              <NovoTicketButton />
-
-              <ThemeToggle />
-
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Notificações"
-                className="relative cursor-pointer rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
+                aria-label="Buscar chamado"
+                className="cursor-pointer rounded-full sm:hidden"
+                onClick={() => setBuscaSheetAberto(true)}
               >
-                <Bell aria-hidden="true" />
-                <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white">
-                  3
-                </span>
+                <Search aria-hidden="true" />
               </Button>
+
+              <NovoTicketButton />
+
+              {/* Tema e notificações saem do header e entram no menu do
+                  avatar abaixo de sm -- ver itens equivalentes lá embaixo. */}
+              <div className="hidden items-center gap-2 sm:flex">
+                <ThemeToggle />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Notificações"
+                  className="relative cursor-pointer rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
+                >
+                  <Bell aria-hidden="true" />
+                  <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white">
+                    3
+                  </span>
+                </Button>
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -352,6 +376,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
+                  <div className="sm:hidden">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    >
+                      Alternar tema
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer">Notificações (3)</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </div>
                   <DropdownMenuItem className="cursor-pointer">
                     Perfil
                   </DropdownMenuItem>
@@ -366,6 +400,29 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenu>
             </div>
           </header>
+
+          <Sheet open={buscaSheetAberto} onOpenChange={setBuscaSheetAberto}>
+            <SheetContent side="top">
+              <SheetHeader>
+                <SheetTitle>Buscar chamado</SheetTitle>
+              </SheetHeader>
+              <form onSubmit={handleBuscaSubmit} role="search" className="relative px-4 pb-4">
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-6.5 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  autoFocus
+                  type="search"
+                  value={busca}
+                  onChange={(event) => setBusca(event.target.value)}
+                  placeholder="Buscar por número ou título do chamado..."
+                  aria-label="Buscar chamado por número ou título"
+                  className="pl-8"
+                />
+              </form>
+            </SheetContent>
+          </Sheet>
           <main className="min-w-0 flex-1 p-(--space-4)">{children}</main>
         </SidebarInset>
       </SidebarProvider>

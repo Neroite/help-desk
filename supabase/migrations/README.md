@@ -53,3 +53,20 @@ MCP, sem arquivo local. Os arquivos acima foram recuperados de
 `supabase_migrations.schema_migrations` (coluna `statements`) e refletem
 literalmente o SQL que rodou no banco — não foram reescritos nem
 "melhorados", justamente para que reaplicá-los produza o schema atual.
+
+## Migrations recentes (fora da tabela acima)
+
+A tabela "Ordem" não foi atualizada desde a rodada `paridade-milvus-atendimento`
+(2026-08-18) — os arquivos `20260818142319` a `20260818142542` existem no
+diretório mas não têm linha própria acima. Não renumerado aqui para não
+arriscar errar a ordem sem conferir cada um; listando só o que foi aplicado
+nesta rodada (`aegis-rebrand-milvus-v2`):
+
+| Arquivo | O que faz |
+|---------|-----------|
+| `20260819022803_helpdesk_ticket_setor.sql` | Coluna `ticket.setor_id` (nullable, FK para `helpdesk.setor`) — setor do cliente de onde veio o chamado, distinto de `usuario.setor_id` (cadastro da pessoa). Editável no painel lateral do detalhe. |
+| `20260819113559_helpdesk_comentario_origem.sql` | Coluna `comentario.origem` (`'usuario'` \| `'descricao'`, default `'usuario'`) — marcador de idempotência para a migration seguinte, eixo diferente de `formato`. |
+| `20260819113633_helpdesk_comentario_backfill_descricao.sql` | Backfill idempotente: descrição de cada chamado existente vira seu primeiro comentário público (`origem = 'descricao'`, autor = solicitante). Preenche `ultima_interacao_em`/`papel` só quando ainda nulos. Confirmado 0 candidatos ao rodar de novo. |
+| `20260819113657_helpdesk_comentario_formato.sql` | Coluna `comentario.formato` (`'texto'` \| `'html'`, default `'texto'`) — histórico continua `whitespace-pre-wrap`; só o editor rich text novo grava `'html'`. |
+| `20260819113723_helpdesk_anexo_inline.sql` | Coluna `anexo.inline` (bool, default `false`) — distingue imagem colada no editor (referenciada por `/api/anexos/<id>` no corpo html) de anexo de verdade da lista do chamado. |
+| `20260819130838_helpdesk_anexo_staff_update.sql` | Policy `anexo_staff_update` (`update ... using (is_staff())`) — faltava UPDATE em `helpdesk.anexo` (só tinha select/insert/delete); precisa pra ligar `comentario_id` a um anexo subido antes de o comentário existir (anexar arquivo no modal de comentário). |

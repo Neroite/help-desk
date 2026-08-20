@@ -17,8 +17,8 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
-  title: "Help-Desk",
-  description: "Sistema de help desk / gestão de tickets.",
+  title: "Aegis",
+  description: "Aegis — sistema de atendimento e gestão de chamados.",
 };
 
 export default function RootLayout({

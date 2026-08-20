@@ -31,6 +31,15 @@ function montarPath(ticketNumero: number, nomeArquivo: string): string {
 export interface AnexarArquivoInput {
   ticketNumero: number
   comentarioId?: string | null
+  // Imagem colada/arrastada dentro do editor de comentário (referenciada por
+  // /api/anexos/<id> no corpo html) em vez de anexo de verdade da lista do
+  // chamado -- ver migration 20260819113723.
+  inline?: boolean
+  // O editor rich text sobe imagem a cada paste, potencialmente várias vezes
+  // por segundo de digitação; revalidatePath ali dispararia router.refresh()
+  // no meio da digitação e derrubaria foco/estado do modal (C4). Default true
+  // porque todo outro chamador (lista de anexos) precisa da revalidação.
+  revalidar?: boolean
 }
 
 /**
@@ -40,7 +49,7 @@ export interface AnexarArquivoInput {
 export async function anexarArquivo(
   formData: FormData,
   input: AnexarArquivoInput
-): Promise<void> {
+): Promise<{ id: string }> {
   const arquivo = formData.get("arquivo")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
     throw new Error("Selecione um arquivo para anexar.")
@@ -57,13 +66,18 @@ export async function anexarArquivo(
     .upload(path, arquivo, { contentType: arquivo.type || undefined, upsert: false })
   if (erroUpload) throw erroUpload
 
-  const { error: erroMetadado } = await supabase.from("anexo").insert({
-    ticket_id: input.ticketNumero,
-    comentario_id: input.comentarioId ?? null,
-    storage_path: path,
-    nome: arquivo.name,
-    tamanho: arquivo.size,
-  })
+  const { data: anexo, error: erroMetadado } = await supabase
+    .from("anexo")
+    .insert({
+      ticket_id: input.ticketNumero,
+      comentario_id: input.comentarioId ?? null,
+      storage_path: path,
+      nome: arquivo.name,
+      tamanho: arquivo.size,
+      inline: input.inline ?? false,
+    })
+    .select("id")
+    .single()
 
   // Metadado é o que a aplicação enxerga; sem ele o objeto vira lixo invisível
   // no bucket. Se o insert falhar, desfaz o upload antes de propagar o erro.
@@ -72,8 +86,12 @@ export async function anexarArquivo(
     throw erroMetadado
   }
 
-  revalidatePath(`/chamados/${input.ticketNumero}`)
-  revalidatePath(`/portal/chamados/${input.ticketNumero}`)
+  if (input.revalidar ?? true) {
+    revalidatePath(`/chamados/${input.ticketNumero}`)
+    revalidatePath(`/portal/chamados/${input.ticketNumero}`)
+  }
+
+  return { id: anexo.id }
 }
 
 /**

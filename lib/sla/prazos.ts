@@ -31,6 +31,17 @@ export function aplicarPausa(ticket: TicketSlaState, agora: Date): TicketSlaStat
   return { ...ticket, slaPausadoEm: agora }
 }
 
+// aplicarPausa NÃO é idempotente -- chamar de novo sobre um ticket já
+// pausado sobrescreve slaPausadoEm e "rouba" os minutos já decorridos da
+// pausa em curso. Como o SLA pode ser pausado tanto pelo status
+// (pausado/aguardando_aprovacao) quanto manualmente e independente do
+// status (helpdesk.ticket.sla_pausado_em é o único campo, os dois tipos de
+// pausa nunca coexistem), toda pausa precisa passar por aqui em vez de
+// chamar aplicarPausa direto.
+export function pausarSeNecessario(ticket: TicketSlaState, agora: Date): TicketSlaState {
+  return ticket.slaPausadoEm ? ticket : aplicarPausa(ticket, agora)
+}
+
 export function aplicarRetomada(ticket: TicketSlaState, agora: Date): TicketSlaState {
   if (!ticket.slaPausadoEm) return ticket
 

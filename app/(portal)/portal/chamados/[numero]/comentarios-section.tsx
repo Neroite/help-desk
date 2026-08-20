@@ -34,6 +34,7 @@ export function ComentariosSection({ ticketNumero, comentarios, eventos, anexos 
       ticketId: ticketNumero,
       autorId: usuarioAtual?.id ?? "",
       corpo,
+      formato: "texto",
       interno: false,
       criadoEm: new Date().toISOString(),
     }
