@@ -1,9 +1,7 @@
 ## Purpose
 
 Garante que o Kanban de chamados seja uma visualização confiável do fluxo de atendimento — sem oferecer, por si só, um mecanismo de mudança de status — e destaca, sem esconder o status real, quais chamados abertos esperam resposta do analista.
-
 ## Requirements
-
 ### Requirement: Kanban é somente visualização
 O Kanban SHALL exibir os chamados sem oferecer nenhum mecanismo de mudança de status a partir dele — nem arrastar card entre colunas, nem menu de mudança rápida no card. A única interação do card é a navegação: um clique leva ao detalhe do chamado, onde o status pode ser alterado.
 
@@ -20,11 +18,16 @@ O Kanban SHALL exibir os chamados sem oferecer nenhum mecanismo de mudança de s
 - **THEN** o sistema navega para o detalhe do chamado, onde o status pode ser alterado
 
 ### Requirement: Card do Kanban exibe apenas os campos de referência
-O card do Kanban SHALL exibir apenas: número do chamado e nome do cliente, avatar do operador responsável, título do chamado em uma linha, indicadores de SLA de resposta e de solução, e a data de criação — sem exibir prioridade, nome textual do analista ou nome do solicitante.
+O card do Kanban SHALL exibir apenas: número do chamado e nome do cliente, avatar do
+operador responsável, título do chamado em uma linha, e a data de criação — sem exibir
+indicador de SLA, prioridade, nome textual do analista ou nome do solicitante. O
+indicador de SLA passa a existir só no painel lateral do detalhe do chamado.
 
 #### Scenario: Card enxuto
 - **WHEN** um card é exibido em qualquer coluna do Kanban
-- **THEN** ele mostra número, cliente, avatar do operador, título, os dois indicadores de SLA e a data, e não mostra um badge de prioridade nem o nome por extenso do analista ou do solicitante
+- **THEN** ele mostra número, cliente, avatar do operador, título e a data, e não mostra
+  indicador de SLA, badge de prioridade nem o nome por extenso do analista ou do
+  solicitante
 
 ### Requirement: Coluna derivada "Última interação do cliente"
 O Kanban SHALL exibir, no lugar da coluna "Cancelado", uma coluna derivada que lista chamados não finalizados cuja última interação pública foi do solicitante, sem removê-los de sua coluna de status real e sem aceitar que cards sejam soltos nela.
@@ -51,3 +54,4 @@ O dashboard SHALL exibir um indicador com a contagem de chamados abertos cuja ú
 #### Scenario: Tile "Aguardando resposta"
 - **WHEN** o dashboard é exibido
 - **THEN** um tile mostra a contagem atual de chamados abertos aguardando resposta do analista e leva, ao ser clicado, à visão de chamados filtrada por esse critério
+
