@@ -1,4 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path d="M32 6 L14 10 L6 24 L32 58 L58 24 L50 10 Z" fill="#1e40af" />
-  <path d="M50 28 L62 24 L57 45 Z" fill="#f97316" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#ffffff" />
+  <path
+    d="M16 2 27 6.5v8.2c0 8.1-4.7 13.6-11 15.3-6.3-1.7-11-7.2-11-15.3V6.5L16 2Z"
+    fill="#1e40af"
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+  />
+  <path
+    d="M16 9 21.5 22h-3.1l-1.15-2.9h-5.7L10.4 22H7.3L12.9 9h3.1Zm-1.55 3.35-1.9 4.85h3.8l-1.9-4.85Z"
+    fill="#ffffff"
+  />
+  <path d="M21.5 22h3.1l-2.05-5.1-2.55 1.9L21.5 22Z" fill="#d97706" />
 </svg>

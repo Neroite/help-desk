@@ -1,0 +1,97 @@
+/* Escopo da landing pública (Aegis). Só o que o Tailwind emite como
+   REFERÊNCIA de variável pode ser re-escopado aqui — as `rounded-*` saem
+   como var(--radius)/calc(var(--radius)*N), então funcionam. A escala de
+   texto do dashboard (--text-xs..2xl) é inlinada como literal e por isso
+   NÃO é re-escopável — ela ganhou chaves aditivas em app/globals.css
+   (--text-d1..d3, --text-lead) em vez de ser sobrescrita aqui.
+   Ver design-system/help-desk/pages/landing.md. */
+
+.landing {
+  --radius: 14px;
+
+  /* Fixo nos dois temas: --primary vira um azul mais claro no dark
+     (app/globals.css) para manter contraste em botões pequenos, o que
+     reduziria o contraste de um bloco full-bleed com texto branco. */
+  --site-navy: #1e3a8a;
+  --site-navy-fg: #eff6ff;
+
+  letter-spacing: -0.011em;
+}
+
+.landing :where(h1, h2, h3) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.026em;
+  text-wrap: balance;
+}
+
+.landing :where(p) {
+  text-wrap: pretty;
+}
+
+/* Mini-UI de produto (mockups): volta ao raio e ao tracking do dashboard,
+   senão o "print" não parece o produto real. */
+.landing .ui-preview {
+  --radius: 6px;
+  letter-spacing: normal;
+}
+
+/* Âncora sob o header sticky */
+.landing :where(section[id]) {
+  scroll-margin-top: 88px;
+}
+
+/* Linhas de fundo (components/site/background-paths.tsx).
+   Em CSS, e não em Motion, de propósito: animar os 72 <path> por JS
+   escrevia estilo inline em cada um a cada frame e fazia a página piscar.
+   Aqui quem interpola é o motor do navegador. Ver o comentário do
+   componente para o histórico completo.
+
+   Invariante do loop: o dashoffset varia exatamente UM período do
+   dasharray (0.08 + 0.17 = 0.25) por ciclo. Como o padrão é um pente
+   rígido deslizando, deslocá-lo por um período inteiro devolve um quadro
+   idêntico ao inicial — a emenda não é disfarçada, ela não existe.
+
+   Uma versão anterior usava período 1, igual ao comprimento normalizado da
+   curva: cabia um único traço, e dava pra ver ele sair pelo fim enquanto
+   outro nascia no início. Com 0.25 são quatro traços em fluxo, e o que
+   entra numa ponta compensa o que sai na outra. */
+@keyframes traco-fluxo {
+  from {
+    stroke-dashoffset: 0.25;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.landing .traco-fluxo {
+  /* Fração da curva, graças ao pathLength=1 no <path>: traços de 8% com 17%
+     de intervalo. Os 32% de tinta resultantes são o ponto — mantêm a
+     densidade dos 30% da versão de período 1, e com ela a calibragem de
+     opacidade que deixa o texto do Hero legível por cima. */
+  stroke-dasharray: 0.08 0.17;
+  animation: traco-fluxo var(--traco-dur, 4s) linear infinite;
+  animation-delay: var(--traco-atraso, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Precisa de !important e de animation-name: none: a regra acima só
+     zera a DURAÇÃO, e uma animação infinita de 0.01ms giraria a mil por
+     hora em vez de parar. O tracejado fica, parado: quem desliga animação
+     vê a mesma densidade de quem não desliga — linha cheia seria 100% de
+     tinta em 72 caminhos, bem mais pesada que os 32% animados.
+     O dashoffset por caminho é obrigatório junto: parados todos na fase 0,
+     os traços se alinham em faixas densas em vez de se espalharem. */
+  .landing .traco-fluxo {
+    animation-name: none !important;
+    stroke-dashoffset: var(--traco-fase, 0);
+  }
+  html:has(.landing) {
+    scroll-behavior: auto;
+  }
+}

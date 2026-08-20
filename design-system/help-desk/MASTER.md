@@ -1,6 +1,6 @@
 # Design System Master File
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
+> **LOGIC:** When building a specific page, first check `design-system/help-desk/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.
 > If not, strictly follow the rules below.
 
@@ -165,6 +165,8 @@ Dial 3/10 — subtle. Nada de scroll-reveal (isso é padrão de landing page, n�
 ---
 
 ## Anti-Patterns (Do NOT Use)
+
+(exceto `app/(site)/` — ver `pages/landing.md`, que documenta os overrides item a item)
 
 - ❌ Padrão de landing page (hero, CTA, prova social) — este é um produto interno, não converte visitante
 - ❌ Tipografia oversized / `clamp(3rem, 10vw, 12rem)` — isso é para editorial/portfolio
