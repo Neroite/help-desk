@@ -80,7 +80,11 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/logout") return response
 
   const papel = usuario?.papel as Papel | undefined
-  if (!papel) return response
+  if (!papel) {
+    if (ehRotaPublica(pathname)) return response
+    const loginUrl = new URL("/login", request.url)
+    return NextResponse.redirect(loginUrl)
+  }
 
   const destinoCorreto = redirectPorPapel(papel)
   const noPortal = pathname.startsWith("/portal")

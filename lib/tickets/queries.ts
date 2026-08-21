@@ -10,6 +10,7 @@ import type {
   Comentario,
   Empresa,
   MesaTrabalho,
+  Papel,
   Prioridade,
   Setor,
   SlaPolicy,
@@ -262,6 +263,30 @@ export async function listarUsuarios(): Promise<Usuario[]> {
     id: u.id,
     nome: u.nome,
     email: u.email,
+    papel: u.papel,
+    empresaId: u.empresa_id,
+    setorId: u.setor_id,
+    avatarIniciais: iniciais(u.nome),
+  }))
+}
+
+// Versão sem email pro portal do solicitante: usuario_select restringe a
+// tabela a self/staff, então a lista de admin/analista pro portal vem por
+// essa RPC (security definer, sem coluna email) em vez de .from("usuario").
+export async function listarUsuariosDiretorio(): Promise<Usuario[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("usuario_diretorio")
+  if (error) throw error
+  type LinhaDiretorio = {
+    id: string
+    nome: string
+    papel: Papel
+    empresa_id: string | null
+    setor_id: string | null
+  }
+  return ((data ?? []) as LinhaDiretorio[]).map((u) => ({
+    id: u.id,
+    nome: u.nome,
     papel: u.papel,
     empresaId: u.empresa_id,
     setorId: u.setor_id,
