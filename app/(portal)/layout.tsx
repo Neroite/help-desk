@@ -8,7 +8,7 @@ import {
   listarEmpresas,
   listarMesasTrabalho,
   listarSlaPolicies,
-  listarUsuarios,
+  listarUsuariosDiretorio,
 } from "@/lib/tickets/queries"
 
 import { PortalShell } from "./portal-shell"
@@ -24,7 +24,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
     usuarioAtual,
   ] = await Promise.all([
     listarEmpresas(),
-    listarUsuarios(),
+    listarUsuariosDiretorio(),
     listarCategoriasAtendimento(),
     listarCategoriasProblema(),
     listarSlaPolicies(),

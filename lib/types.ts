@@ -48,7 +48,10 @@ export interface Empresa {
 export interface Usuario {
   id: string
   nome: string
-  email: string
+  // Opcional: o portal do solicitante recebe usuários via
+  // usuario_diretorio() (RPC sem coluna email, ver lib/tickets/queries.ts),
+  // já que a RLS de helpdesk.usuario restringe a linha completa a self/staff.
+  email?: string
   papel: Papel
   empresaId: string | null
   setorId: string | null
