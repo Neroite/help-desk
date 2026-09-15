@@ -12,13 +12,27 @@ export const NAV = [
 ] as const
 
 export const HERO = {
+  eyebrow: "Help desk para equipes de suporte que atendem várias empresas",
+  titulo: "Da abertura ao fechamento, o chamado inteiro em um só lugar.",
+  subtitulo:
+    "Fila e Kanban atualizados em tempo real, com categoria, anexos e apontamento de horas junto do chamado — e um link de avaliação ao final, sem exigir login do solicitante.",
+  ctaPrimario: "Entrar",
+  ctaReasseguro: "Já é cliente? Entre com a conta da sua equipe.",
+  ctaSecundario: "Ver como funciona",
+} as const
+
+// Copy original do Hero, quando o ShieldClock era o elemento de abertura da
+// página — preservada ao pé da letra (fases 0-6/8, sem invenção) pra seção
+// "Entenda a pausa", que assumiu o mecanismo depois que o Hero passou a
+// abrir com o ciclo de vida do chamado em vez do relógio de SLA.
+export const MECANISMO_SLA = {
   eyebrow: "Help desk para equipes que levam prazo a sério",
   titulo: "O relógio do SLA que sabe quando parar.",
   subtitulo:
     "Expediente fixo de 09:00 às 18:00, seg. a sex. Quando um chamado é pausado ou fica aguardando aprovação, o prazo congela de verdade — e retoma somando só os minutos úteis que ficaram parados.",
-  ctaPrimario: "Entrar",
-  ctaSecundario: "Ver como funciona",
 } as const
+
+export const PARA_QUEM_EYEBROW = "Por papel"
 
 export const PARA_QUEM = [
   {
@@ -51,6 +65,7 @@ export const PARA_QUEM = [
 ] as const
 
 export const DOR_VIRADA = {
+  eyebrow: "O problema real",
   titulo: "Sua equipe já passou por isso?",
   pares: [
     {
@@ -72,6 +87,9 @@ export const DOR_VIRADA = {
   ],
   virada: "Prazo apertado é difícil de administrar. O Aegis torna isso simples.",
 } as const
+
+export const PILARES_EYEBROW = "Como o Aegis resolve"
+export const PILARES_TITULO = "Os pilares do Aegis"
 
 export const PILARES = [
   {
@@ -117,16 +135,6 @@ export const COMO_FUNCIONA = [
     mockup: "avaliacao",
   },
 ] as const
-
-export const RECAP = {
-  titulo: "Se você chegou até aqui, você quer:",
-  itens: [
-    "Um prazo de SLA que reflete o tempo real de trabalho, não o relógio corrido",
-    "Uma fila que a equipe inteira vê atualizada, sem F5",
-    "Dado de cliente separado por empresa, garantido pelo banco",
-    "Um portal simples para quem abre o chamado, sem treinamento",
-  ],
-} as const
 
 export const FAQ = [
   {

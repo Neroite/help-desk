@@ -3,12 +3,13 @@ interface BrowserChromeProps {
   label: string
   children: React.ReactNode
   className?: string
+  extra?: React.ReactNode
 }
 
 // Moldura de "print de produto" para os mockups da landing. O conteúdo
 // interno recebe a classe .ui-preview (site.css), que reseta --radius
 // para 6px — o mockup precisa parecer o produto real, não a landing.
-export function BrowserChrome({ url = "aegis.app/chamados", label, children, className }: BrowserChromeProps) {
+export function BrowserChrome({ url = "aegis.app/chamados", label, children, className, extra }: BrowserChromeProps) {
   return (
     <div
       className={`overflow-hidden rounded-2xl border border-border bg-surface shadow-xl ${className ?? ""}`}
@@ -22,6 +23,7 @@ export function BrowserChrome({ url = "aegis.app/chamados", label, children, cla
         <span className="ml-2 truncate rounded-md bg-background px-2 py-0.5 text-xs text-muted-foreground">
           {url}
         </span>
+        {extra}
       </div>
       <div className="ui-preview overflow-x-auto bg-background p-3" aria-hidden="true">
         {children}

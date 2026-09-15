@@ -60,9 +60,9 @@ function construirPalavras(segmentos: TextRevealSegmento[]): Palavra[] {
 // lib/site/use-reduced-motion-safe.ts).
 //
 // O gatilho é whileInView no <motion.h1> pai — nunca initial/animate de
-// montagem. O Hero não é mais a primeira seção da página; se a animação
-// disparasse ao montar, já teria terminado muito antes de qualquer
-// visitante rolar até lá. Cada letra usa `variants` com os mesmos nomes
+// montagem: whileInView cobre tanto o caso "primeira dobra" (dispara assim
+// que a viewport inicial é medida) quanto qualquer seção mais abaixo, sem
+// precisar de dois caminhos de animação diferentes. Cada letra usa `variants` com os mesmos nomes
 // de estado do pai (oculto/visivel) e NENHUM whileInView próprio — o
 // Motion propaga o estado do ancestral mais próximo que o declara, então
 // uma spring por letra não custa 34 IntersectionObservers, e a cascata

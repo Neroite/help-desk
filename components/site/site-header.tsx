@@ -68,10 +68,12 @@ export function SiteHeader() {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Button render={<Link href="/login" />} nativeButton={false} variant="ghost">
-              Entrar
-            </Button>
+          {/* Um único CTA, de propósito: um ghost + um sólido com o mesmo
+              rótulo "Entrar" pro mesmo destino era duplicidade, não duas
+              ações — ver critique da landing. O produto não tem cadastro
+              self-service (é B2B/MSP), então não há um segundo destino
+              real pra diferenciar aqui. */}
+          <div className="hidden items-center md:flex">
             <Button render={<Link href="/login" />} nativeButton={false}>
               {HERO.ctaPrimario}
             </Button>
@@ -102,9 +104,6 @@ export function SiteHeader() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <Button render={<Link href="/login" />} nativeButton={false} variant="outline">
-                Entrar
-              </Button>
               <Button render={<Link href="/login" />} nativeButton={false}>
                 {HERO.ctaPrimario}
               </Button>
