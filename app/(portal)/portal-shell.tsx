@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Bell, Moon, Plus, Search, Sun } from "lucide-react"
 
-import { AegisLogo } from "@/components/brand/aegis-logo"
+import Image from "next/image"
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -73,9 +74,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
         >
           <div
             aria-hidden="true"
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white"
           >
-            <AegisLogo className="size-4" />
+            <Image src="/marca/aegis-mark.png" alt="" width={32} height={36} className="h-5 w-auto" priority />
           </div>
           Aegis
         </Link>
