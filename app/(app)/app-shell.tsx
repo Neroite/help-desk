@@ -27,7 +27,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import { AegisLogo } from "@/components/brand/aegis-logo"
+import Image from "next/image"
+
 import { NovoChamadoProvider, useNovoChamado } from "@/components/chamado/novo-chamado-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -204,9 +205,9 @@ function AppSidebar({ activeUrl, ehAdmin }: { activeUrl: string | null; ehAdmin:
         <Link href="/chamados?view=kanban" className="flex items-center gap-2 overflow-hidden">
           <div
             aria-hidden="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-active)] text-white"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white"
           >
-            <AegisLogo className="size-5" />
+            <Image src="/marca/aegis-mark.png" alt="" width={32} height={36} className="h-6 w-auto" priority />
           </div>
           <span className="truncate text-base font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
             Aegis

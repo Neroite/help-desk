@@ -1,35 +1,23 @@
-type AegisMarkProps = React.SVGProps<SVGSVGElement>
+import Image from "next/image"
 
-// Escudo com "A" vazado (fill-rule evenodd) — a cor de fundo aparece
-// através do "A", então a marca funciona sobre branco, sobre o navy da
-// prova de escala e no dark, sem precisar de uma segunda variante.
-export function AegisMark({ className, "aria-hidden": ariaHidden, ...props }: AegisMarkProps) {
+interface AegisMarkProps {
+  className?: string
+  "aria-hidden"?: boolean
+}
+
+// Marca oficial (Gemini_Generated_Image_.jpg, recortada com fundo
+// transparente em public/marca/aegis-mark.png) — substitui o "A" vazado
+// desenhado à mão que existia aqui antes.
+export function AegisMark({ className, "aria-hidden": ariaHidden }: AegisMarkProps) {
   return (
-    <svg
-      viewBox="0 0 32 32"
+    <Image
+      src="/marca/aegis-mark.png"
+      alt={ariaHidden ? "" : "Aegis"}
+      width={32}
+      height={36}
       className={className}
-      role={ariaHidden ? undefined : "img"}
-      aria-label={ariaHidden ? undefined : "Aegis"}
       aria-hidden={ariaHidden}
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <path
-        d="M16 2 27 6.5v8.2c0 8.1-4.7 13.6-11 15.3-6.3-1.7-11-7.2-11-15.3V6.5L16 2Z"
-        fill="var(--site-brand, #1e40af)"
-        fillRule="evenodd"
-        clipRule="evenodd"
-      />
-      <path
-        d="M16 9 21.5 22h-3.1l-1.15-2.9h-5.7L10.4 22H7.3L12.9 9h3.1Zm-1.55 3.35-1.9 4.85h3.8l-1.9-4.85Z"
-        fill="currentColor"
-        className="text-background"
-      />
-      <path
-        d="M21.5 22h3.1l-2.05-5.1-2.55 1.9L21.5 22Z"
-        fill="var(--site-brand-accent, #d97706)"
-      />
-    </svg>
+    />
   )
 }
 
@@ -43,7 +31,7 @@ interface AegisLogoProps {
 export function AegisLogo({ className, markClassName }: AegisLogoProps) {
   return (
     <span className={`inline-flex items-center gap-2 ${className ?? ""}`}>
-      <AegisMark className={markClassName ?? "size-7"} aria-hidden />
+      <AegisMark className={markClassName ?? "h-7 w-auto"} aria-hidden />
       <span className="text-lead font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
         Aegis
       </span>

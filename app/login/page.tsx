@@ -1,6 +1,6 @@
 import { BarChart3, Kanban, Lock, Mail, TimerReset } from "lucide-react"
+import Image from "next/image"
 
-import { AegisLogo } from "@/components/brand/aegis-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,9 +25,7 @@ export default async function LoginPage({
     <div className="mx-auto grid min-h-svh max-w-6xl lg:grid-cols-2">
       <div className="flex flex-col items-center justify-center gap-8 bg-background px-4 py-16">
         <div className="flex items-center gap-2.5 text-foreground">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <AegisLogo className="size-5" />
-          </div>
+          <Image src="/marca/aegis-mark.png" alt="Aegis" width={36} height={40} className="h-9 w-auto" priority />
           <span className="text-xl font-semibold tracking-tight">Aegis</span>
         </div>
 
