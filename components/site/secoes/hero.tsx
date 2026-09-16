@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
+import { FloatingPaths } from "@/components/site/background-paths"
 import { HeroMontagem } from "@/components/site/secoes/hero-montagem"
 import { TextReveal } from "@/components/site/text-reveal"
 import { HERO } from "@/lib/site/conteudo"
@@ -16,15 +17,38 @@ export function Hero() {
     <section className="relative overflow-hidden">
       {/* Wash só com --primary (nenhuma cor nova) atrás da seção inteira —
           radial mais forte atrás da montagem + um degradê linear que cresce
-          rumo à base da seção. aria-hidden porque é puramente decorativo. */}
+          e depois volta a transparente antes da base da seção — sem isso o
+          wash terminava no tom mais forte bem na borda com a seção seguinte
+          (branca), criando uma linha de corte visível. aria-hidden porque é
+          puramente decorativo.
+
+          O centro do radial está na ALTURA do distintivo (44%), não lá em
+          cima (22%, como estava): centrado no vazio acima da peça, o wash
+          gastava a parte mais forte onde não havia nada e chegava quase
+          apagado justamente atrás dela. O degradê linear de baixo continua
+          intacto — é ele que mata a emenda com a seção seguinte. */}
       <div
         aria-hidden="true"
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(60% 55% at 72% 22%, color-mix(in srgb, var(--primary) 26%, transparent) 0%, transparent 70%), linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--primary) 12%, transparent) 100%)",
+            "radial-gradient(58% 62% at 72% 44%, color-mix(in srgb, var(--primary) 32%, transparent) 0%, transparent 72%), linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--primary) 12%, transparent) 70%, transparent 100%)",
         }}
       />
+      {/* O campo de linhas volta para casa. Ele NASCEU aqui — o comentário
+          de components/site/secoes/mecanismo-sla.tsx registra que desceu
+          junto com o bloco de SLA quando a página passou a abrir pelo ciclo
+          de vida do chamado, e site.css ainda diz, ao pé da letra, que a
+          calibragem de opacidade é "a que deixa o texto do Hero legível por
+          cima". O Hero ficou sem fundo nenhum desde então.
+
+          Não é repetição das duas instâncias cruzadas lá de baixo: aqui é
+          uma passada só, mascarada num poço em cima do distintivo (classe
+          campo-hero, em site.css). Lá o campo é a textura da seção; aqui é
+          o rastro da peça. Componente de servidor, zero KB de JS. */}
+      <div aria-hidden="true" className="campo-hero absolute inset-0">
+        <FloatingPaths position={-1} />
+      </div>
       {/* Único bloco da landing sem o max-w-6xl do resto das seções — de
           propósito: é o "resumo geral" da página, e cobrir a largura real
           da tela (em vez de ficar preso na mesma coluna centralizada de

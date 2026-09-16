@@ -108,5 +108,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)"],
+  // .html incluído por causa de public/3d/*.html (artefato Three.js embutido
+  // via iframe no hero) — sem isso a guarda de auth intercepta o request do
+  // iframe e devolve 307 pra /login em vez do arquivo estático.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|html)$).*)"],
 }

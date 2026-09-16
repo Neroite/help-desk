@@ -75,6 +75,70 @@
   animation-delay: var(--traco-atraso, 0s);
 }
 
+/* Campo de linhas do Hero (components/site/secoes/hero.tsx).
+   As mesmas FloatingPaths da seção do relógio de SLA, mas com outro
+   trabalho: lá elas cruzam a seção inteira, aqui são mascaradas num poço
+   radial em cima do distintivo — leem como emanação da peça, não como
+   textura de faixa. A máscara mora aqui, e não numa arbitrária do Tailwind,
+   porque ela muda de centro entre mobile (distintivo empilhado embaixo do
+   texto) e desktop (distintivo na coluna da direita), e a versão em
+   utilitária ficaria ilegível de tanto sublinhado.
+
+   Ela também é a rede de segurança da emenda com a seção seguinte: o poço
+   chega a transparente bem antes da base da seção, então nenhum traço
+   alcança a borda branca — o mesmo cuidado que o degradê de hero.tsx toma. */
+.landing .campo-hero {
+  -webkit-mask-image: radial-gradient(
+    72% 44% at 50% 70%,
+    #000 0%,
+    rgba(0, 0, 0, 0.5) 48%,
+    transparent 80%
+  );
+  mask-image: radial-gradient(72% 44% at 50% 70%, #000 0%, rgba(0, 0, 0, 0.5) 48%, transparent 80%);
+}
+
+@media (min-width: 1024px) {
+  .landing .campo-hero {
+    -webkit-mask-image: radial-gradient(
+      52% 64% at 72% 46%,
+      #000 0%,
+      rgba(0, 0, 0, 0.5) 45%,
+      transparent 80%
+    );
+    mask-image: radial-gradient(
+      52% 64% at 72% 46%,
+      #000 0%,
+      rgba(0, 0, 0, 0.5) 45%,
+      transparent 80%
+    );
+  }
+}
+
+/* Anéis do palco do distintivo (components/site/palco-distintivo.tsx).
+   O transform do keyframe inclui a centralização porque ele sobrescreve
+   qualquer -translate-* utilitária do elemento — sem os -50% aqui o anel
+   nasce deslocado meio anel para baixo e para a direita.
+
+   fill-mode `both` é o que faz isto sobreviver ao prefers-reduced-motion:
+   a regra lá embaixo zera a DURAÇÃO para 0.01ms, e com `both` a animação
+   simplesmente pousa no estado final na hora, sem precisar de um branch em
+   JS nem de uma segunda árvore. */
+@keyframes anel-palco-entrada {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.78);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.landing .anel-palco {
+  animation: anel-palco-entrada 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anel-atraso, 0s);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing * {
     animation-duration: 0.01ms !important;
